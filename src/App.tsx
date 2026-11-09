@@ -5,6 +5,7 @@ import Portfolio from './pages/Portfolio'
 import NetWorth from './pages/NetWorth'
 import Fire from './pages/Fire'
 import Admin from './pages/Admin'
+import MarketData from './pages/MarketData'
 
 function App() {
   const [page, setPage] =
@@ -74,6 +75,15 @@ function App() {
 
           <button
             onClick={() =>
+              setPage('market')
+            }
+            style={menuButtonStyle}
+          >
+            📊 Tržní data
+          </button>
+
+          <button
+            onClick={() =>
               setPage('admin')
             }
             style={menuButtonStyle}
@@ -103,6 +113,10 @@ function App() {
 
         {page === 'fire' && (
           <Fire />
+        )}
+
+        {page === 'market' && (
+          <MarketData />
         )}
 
         {page === 'admin' && (
