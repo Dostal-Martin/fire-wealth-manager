@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { getInstruments } from '../services/instruments'
+import type { Instrument } from '../types/instrument'
 
 export default function Portfolio() {
-  const [instruments, setInstruments] = useState<any[]>([])
+  const [instruments, setInstruments] = useState<Instrument[]>([])
 
   useEffect(() => {
     async function load() {
@@ -23,7 +24,6 @@ export default function Portfolio() {
         style={{
           width: '100%',
           borderCollapse: 'collapse',
-          marginTop: '20px',
         }}
       >
         <thead>
