@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import Portfolio from './pages/Portfolio'
 import NetWorth from './pages/NetWorth'
 import Fire from './pages/Fire'
+import Admin from './pages/Admin'
 
 function App() {
   const [page, setPage] =
@@ -70,6 +71,15 @@ function App() {
           >
             🔥 FIRE
           </button>
+
+          <button
+            onClick={() =>
+              setPage('admin')
+            }
+            style={menuButtonStyle}
+          >
+            ⚙️ Správa dat
+          </button>
         </div>
       </aside>
 
@@ -91,7 +101,13 @@ function App() {
           <NetWorth />
         )}
 
-        {page === 'fire' && <Fire />}
+        {page === 'fire' && (
+          <Fire />
+        )}
+
+        {page === 'admin' && (
+          <Admin />
+        )}
       </main>
     </div>
   )
@@ -99,12 +115,13 @@ function App() {
 
 const menuButtonStyle = {
   background: 'transparent',
-  border: 'none',
+  border: '1px solid rgba(255,255,255,0.1)',
   color: 'white',
   textAlign: 'left' as const,
-  padding: '10px 0',
+  padding: '12px',
   cursor: 'pointer',
   fontSize: '16px',
+  borderRadius: '8px',
 }
 
 export default App

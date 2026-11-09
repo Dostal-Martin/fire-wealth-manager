@@ -1,4 +1,4 @@
-import fireData from '../data/fireData.json'
+import { getHistory } from '../services/history'
 
 import {
   ResponsiveContainer,
@@ -11,12 +11,14 @@ import {
 } from 'recharts'
 
 export default function NetWorth() {
-  const history = fireData.history
+  const history = getHistory()
 
-  const startValue = history[0].amount
+  const startValue =
+    history[0].amount
 
   const endValue =
-    history[history.length - 1].amount
+    history[history.length - 1]
+      .amount
 
   const startDate = new Date(
     history[0].date
@@ -113,7 +115,6 @@ export default function NetWorth() {
 
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 12 }}
             />
 
             <YAxis
