@@ -2,10 +2,12 @@ import { useState } from 'react'
 
 import Dashboard from './pages/Dashboard'
 import Portfolio from './pages/Portfolio'
+import PositionManager from './pages/PositionManager'
+import InstrumentManager from './pages/InstrumentManager'
+import MarketData from './pages/MarketData'
 import NetWorth from './pages/NetWorth'
 import Fire from './pages/Fire'
 import Admin from './pages/Admin'
-import MarketData from './pages/MarketData'
 
 function App() {
   const [page, setPage] =
@@ -21,7 +23,7 @@ function App() {
     >
       <aside
         style={{
-          width: '240px',
+          width: '260px',
           backgroundColor: '#0f172a',
           color: 'white',
           padding: '20px',
@@ -57,6 +59,33 @@ function App() {
 
           <button
             onClick={() =>
+              setPage('positions')
+            }
+            style={menuButtonStyle}
+          >
+            ➕ Správa pozic
+          </button>
+
+          <button
+            onClick={() =>
+              setPage('instruments')
+            }
+            style={menuButtonStyle}
+          >
+            🏷️ Správa instrumentů
+          </button>
+
+          <button
+            onClick={() =>
+              setPage('market')
+            }
+            style={menuButtonStyle}
+          >
+            📊 Tržní data
+          </button>
+
+          <button
+            onClick={() =>
               setPage('networth')
             }
             style={menuButtonStyle}
@@ -71,15 +100,6 @@ function App() {
             style={menuButtonStyle}
           >
             🔥 FIRE
-          </button>
-
-          <button
-            onClick={() =>
-              setPage('market')
-            }
-            style={menuButtonStyle}
-          >
-            📊 Tržní data
           </button>
 
           <button
@@ -107,16 +127,24 @@ function App() {
           <Portfolio />
         )}
 
+        {page === 'positions' && (
+          <PositionManager />
+        )}
+
+        {page === 'instruments' && (
+          <InstrumentManager />
+        )}
+
+        {page === 'market' && (
+          <MarketData />
+        )}
+
         {page === 'networth' && (
           <NetWorth />
         )}
 
         {page === 'fire' && (
           <Fire />
-        )}
-
-        {page === 'market' && (
-          <MarketData />
         )}
 
         {page === 'admin' && (
@@ -129,7 +157,8 @@ function App() {
 
 const menuButtonStyle = {
   background: 'transparent',
-  border: '1px solid rgba(255,255,255,0.1)',
+  border:
+    '1px solid rgba(255,255,255,0.1)',
   color: 'white',
   textAlign: 'left' as const,
   padding: '12px',

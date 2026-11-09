@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 
 import { getMarketInstruments } from '../services/marketData'
-import { loadPrices } from '../services/yahooFinance'
 
 export default function MarketData() {
   const [instruments, setInstruments] =
@@ -21,20 +20,16 @@ export default function MarketData() {
     load()
   }, [])
 
-  async function handleLoadPrices() {
+  async function handleRefreshInstruments() {
     try {
-      const result =
-        await loadPrices()
+      const data = await getMarketInstruments()
 
-      setMessage(
-        `Připraveno ${result.length} tickerů`
-      )
+      setInstruments(data)
+      setMessage(`Načteno ${data.length} instrumentů`)
     } catch (error) {
       console.error(error)
 
-      setMessage(
-        'Načítání cen selhalo'
-      )
+      setMessage('Načítání instrumentů selhalo')
     }
   }
 
@@ -43,7 +38,7 @@ export default function MarketData() {
       <h1>📊 Tržní data</h1>
 
       <button
-        onClick={handleLoadPrices}
+        onClick={handleRefreshInstruments}
         style={{
           padding: '12px 20px',
           background: '#2563eb',
@@ -54,7 +49,7 @@ export default function MarketData() {
           marginBottom: '20px',
         }}
       >
-        Načíst aktuální ceny
+        Obnovit seznam instrumentů
       </button>
 
       <p>{message}</p>

@@ -1,52 +1,51 @@
+import { useEffect, useState } from 'react'
+
 import fireData from '../data/fireData.json'
+import { getFireSettings } from '../services/fireSettings'
 
 export default function Fire() {
+  const [fireTarget, setFireTarget] =
+    useState(25000000)
+
+  const [annualExpenses, setAnnualExpenses] =
+    useState(1320000)
+
+  const [withdrawalRate, setWithdrawalRate] =
+    useState(0.04)
+
   const currentNetWorth =
     fireData.history[
       fireData.history.length - 1
     ].amount
 
-  const fireTarget = Number(
-    fireData.settings.fireTarget
-  )
+  useEffect(() => {
+    async function load() {
+      const settings =
+        await getFireSettings()
 
-  const monthlySavings = Number(
-    fireData.settings.fireSavings
-  )
+      setFireTarget(
+        Number(
+          settings.target_fire_number
+        )
+      )
 
-  const expectedReturn =
-    Number(
-      fireData.settings.fireReturn
-    ) / 100
+      setAnnualExpenses(
+        Number(settings.annual_expenses)
+      )
+
+      setWithdrawalRate(
+        Number(settings.withdrawal_rate)
+      )
+    }
+
+    load()
+  }, [])
 
   const progress =
     (currentNetWorth / fireTarget) * 100
 
   const remaining =
     fireTarget - currentNetWorth
-
-  let capital = currentNetWorth
-
-  let months = 0
-
-  while (
-    capital < fireTarget &&
-    months < 600
-  ) {
-    capital =
-      capital *
-        (1 +
-          expectedReturn / 12) +
-      monthlySavings
-
-    months++
-  }
-
-  const yearsToFire = months / 12
-
-  const estimatedFireYear =
-    new Date().getFullYear() +
-    yearsToFire
 
   return (
     <div>
@@ -71,7 +70,9 @@ export default function Fire() {
 
         <Card
           title="FIRE cíl"
-          value={`${fireTarget.toLocaleString(
+          value={`${Math.round(
+            fireTarget
+          ).toLocaleString(
             'cs-CZ'
           )} Kč`}
         />
@@ -82,24 +83,28 @@ export default function Fire() {
         />
 
         <Card
-          title="Chybí do cíle"
+          title="Roční výdaje"
           value={`${Math.round(
-            remaining
+            annualExpenses
           ).toLocaleString(
             'cs-CZ'
           )} Kč`}
         />
 
         <Card
-          title="Měsíční investice"
-          value={`${monthlySavings.toLocaleString(
-            'cs-CZ'
-          )} Kč`}
+          title="SWR"
+          value={`${(
+            withdrawalRate * 100
+          ).toFixed(1)} %`}
         />
 
         <Card
-          title="Odhad FIRE"
-          value={estimatedFireYear.toFixed(1)}
+          title="Chybí do cíle"
+          value={`${Math.round(
+            remaining
+          ).toLocaleString(
+            'cs-CZ'
+          )} Kč`}
         />
       </div>
 
