@@ -1,4 +1,18 @@
+import { useEffect, useState } from 'react'
+import { getInstrumentCount } from '../services/dashboard'
+
 export default function Dashboard() {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    async function load() {
+      const value = await getInstrumentCount()
+      setCount(value)
+    }
+
+    load()
+  }, [])
+
   return (
     <div>
       <h1>Dashboard</h1>
@@ -11,24 +25,9 @@ export default function Dashboard() {
           marginTop: '20px',
         }}
       >
-        <div className="card">
-          <h3>Portfolio</h3>
-          <p>17,1 mil Kč</p>
-        </div>
-
-        <div className="card">
-          <h3>YTD</h3>
-          <p>+13,4 %</p>
-        </div>
-
-        <div className="card">
-          <h3>XIRR</h3>
-          <p>11,8 %</p>
-        </div>
-
-        <div className="card">
-          <h3>FIRE</h3>
-          <p>110 %</p>
+        <div>
+          <h3>Instrumenty</h3>
+          <p>{count}</p>
         </div>
       </div>
     </div>
