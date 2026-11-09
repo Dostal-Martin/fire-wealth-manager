@@ -1,0 +1,2448 @@
+{
+  "history": [
+    {
+      "date": "2021-01-01",
+      "amount": 4002429.36
+    },
+    {
+      "date": "2021-02-27",
+      "amount": 4389687.45
+    },
+    {
+      "date": "2021-03-19",
+      "amount": 4467390.89
+    },
+    {
+      "date": "2021-04-17",
+      "amount": 4701831.38
+    },
+    {
+      "date": "2021-05-14",
+      "amount": 4789198.99
+    },
+    {
+      "date": "2021-06-01",
+      "amount": 4882197.59
+    },
+    {
+      "date": "2021-06-19",
+      "amount": 5001995.72
+    },
+    {
+      "date": "2021-08-05",
+      "amount": 5229462.63
+    },
+    {
+      "date": "2021-10-01",
+      "amount": 5458682.88
+    },
+    {
+      "date": "2021-11-01",
+      "amount": 5459555.64
+    },
+    {
+      "date": "2021-12-01",
+      "amount": 5573746.93
+    },
+    {
+      "date": "2022-01-01",
+      "amount": 5723085.08
+    },
+    {
+      "date": "2022-04-01",
+      "amount": 5966067.79
+    },
+    {
+      "date": "2022-06-01",
+      "amount": 6064612.32
+    },
+    {
+      "date": "2022-08-01",
+      "amount": 6020247.1
+    },
+    {
+      "date": "2022-09-12",
+      "amount": 6260419.12
+    },
+    {
+      "date": "2022-10-03",
+      "amount": 6193671.03
+    },
+    {
+      "date": "2022-11-01",
+      "amount": 6511520.39
+    },
+    {
+      "date": "2023-01-01",
+      "amount": 7026597.46
+    },
+    {
+      "date": "2023-02-07",
+      "amount": 7492364.37
+    },
+    {
+      "date": "2023-03-03",
+      "amount": 7781373.31
+    },
+    {
+      "date": "2023-04-01",
+      "amount": 7827889.76
+    },
+    {
+      "date": "2023-05-02",
+      "amount": 8035991.67
+    },
+    {
+      "date": "2023-06-01",
+      "amount": 8022820.6
+    },
+    {
+      "date": "2023-07-03",
+      "amount": 8116400.36
+    },
+    {
+      "date": "2023-08-01",
+      "amount": 8581830.11
+    },
+    {
+      "date": "2023-09-01",
+      "amount": 8584078.71
+    },
+    {
+      "date": "2023-10-01",
+      "amount": 8741580.48
+    },
+    {
+      "date": "2023-11-01",
+      "amount": 8956385.49
+    },
+    {
+      "date": "2023-12-01",
+      "amount": 9275781.32
+    },
+    {
+      "date": "2024-01-01",
+      "amount": 9567523.11
+    },
+    {
+      "date": "2024-02-01",
+      "amount": 9805273.4
+    },
+    {
+      "date": "2024-04-01",
+      "amount": 10431768.46
+    },
+    {
+      "date": "2024-05-01",
+      "amount": 10780609.23
+    },
+    {
+      "date": "2024-06-01",
+      "amount": 10717137.02
+    },
+    {
+      "date": "2024-07-01",
+      "amount": 10775133.65
+    },
+    {
+      "date": "2024-08-01",
+      "amount": 11218431.21
+    },
+    {
+      "date": "2024-09-01",
+      "amount": 11400413.19
+    },
+    {
+      "date": "2024-10-01",
+      "amount": 11726452.46
+    },
+    {
+      "date": "2024-11-01",
+      "amount": 11991431.74
+    },
+    {
+      "date": "2024-12-01",
+      "amount": 12295813.04
+    },
+    {
+      "date": "2025-01-01",
+      "amount": 12634054.65
+    },
+    {
+      "date": "2025-02-01",
+      "amount": 13061283.5
+    },
+    {
+      "date": "2025-03-01",
+      "amount": 13567667.08
+    },
+    {
+      "date": "2025-04-01",
+      "amount": 13763021.71
+    },
+    {
+      "date": "2025-05-01",
+      "amount": 13516709.43
+    },
+    {
+      "date": "2025-06-01",
+      "amount": 14249386.65
+    },
+    {
+      "date": "2025-07-01",
+      "amount": 14320420.09
+    },
+    {
+      "date": "2025-08-01",
+      "amount": 14873181.58
+    },
+    {
+      "date": "2025-09-01",
+      "amount": 13973835.08
+    },
+    {
+      "date": "2025-10-01",
+      "amount": 14225425.02
+    },
+    {
+      "date": "2025-11-01",
+      "amount": 14292893.2
+    },
+    {
+      "date": "2025-12-01",
+      "amount": 14646098.21
+    },
+    {
+      "date": "2026-01-01",
+      "amount": 15221731.74
+    },
+    {
+      "date": "2026-02-01",
+      "amount": 15553175.55
+    },
+    {
+      "date": "2026-03-01",
+      "amount": 15181081.67
+    },
+    {
+      "date": "2026-04-01",
+      "amount": 14476258.81
+    },
+    {
+      "date": "2026-05-01",
+      "amount": 14961457.27
+    },
+    {
+      "date": "2026-06-01",
+      "amount": 15344292.08
+    },
+    {
+      "date": "2026-07-01",
+      "amount": 15615819.89
+    },
+    {
+      "date": "2026-08-01",
+      "amount": 15871702.97
+    },
+    {
+      "date": "2026-09-01",
+      "amount": 16457315.65
+    },
+    {
+      "date": "2026-10-01",
+      "amount": 16507027.03
+    },
+    {
+      "date": "2026-11-01",
+      "amount": 17111608.49
+    }
+  ],
+  "portfolio": [
+    {
+      "name": "CEZ",
+      "type": "Akcie",
+      "shares": 1000,
+      "totalCost": 933049.7000000001,
+      "amount": 1340000,
+      "buyDate": "2023-07-04",
+      "exemptDate": "2026-07-04"
+    },
+    {
+      "name": "KOMB",
+      "type": "Akcie",
+      "shares": 1500,
+      "totalCost": 1033884.0499999999,
+      "amount": 1492500,
+      "buyDate": "2023-05-15",
+      "exemptDate": "2026-05-15"
+    },
+    {
+      "name": "ERBAG",
+      "type": "Akcie",
+      "shares": 800,
+      "totalCost": 470495.74,
+      "amount": 2191200,
+      "buyDate": "2022-08-18",
+      "exemptDate": "2025-08-18"
+    },
+    {
+      "name": "J&T ARCH INVESTMENT",
+      "type": "PE fond",
+      "shares": 1057972,
+      "totalCost": 1503751.44,
+      "amount": 2137103.44,
+      "buyDate": "2024-01-23",
+      "exemptDate": "2027-01-23"
+    },
+    {
+      "name": "JTSEC F. 1 8,25/28",
+      "type": "Dluhopis",
+      "shares": 50,
+      "totalCost": 502000,
+      "amount": 502000,
+      "buyDate": "2023-09-27",
+      "exemptDate": "2033-09-27"
+    },
+    {
+      "name": "J&T Realitních akcií a dluhopisů OPF",
+      "type": "OPF",
+      "shares": 186898,
+      "totalCost": 192877.39788312954,
+      "amount": 198635.19,
+      "buyDate": "2024-01-23",
+      "exemptDate": "2034-01-23"
+    },
+    {
+      "name": "Naše ČESKO otevřený podílový fond",
+      "type": "PE fond",
+      "shares": 6409,
+      "totalCost": 700000,
+      "amount": 1010917.21,
+      "buyDate": "2023-11-03",
+      "exemptDate": "2026-11-03"
+    },
+    {
+      "name": "J&T OPPORTUNITY OPF",
+      "type": "OPF",
+      "shares": 59553,
+      "totalCost": 375000,
+      "amount": 453132.82,
+      "buyDate": "2026-08-19",
+      "exemptDate": "2029-08-19"
+    },
+    {
+      "name": "Raiffeisen Progresivní",
+      "type": "DIP / DPS",
+      "shares": 51017,
+      "totalCost": 73357.69,
+      "amount": 73357.69,
+      "buyDate": "-",
+      "exemptDate": "2036-08-04"
+    },
+    {
+      "name": "J&T BOND OPF",
+      "type": "OPF",
+      "shares": 178908,
+      "totalCost": 295455.45,
+      "amount": 342680.38,
+      "buyDate": "2024-01-23",
+      "exemptDate": "2027-01-23"
+    },
+    {
+      "name": "J&T Credit Opportunities B CZK",
+      "type": "OPF",
+      "shares": 2237.804,
+      "totalCost": 301485.15,
+      "amount": 355810.84,
+      "buyDate": "2024-02-01",
+      "exemptDate": "2027-02-01"
+    },
+    {
+      "name": "TABAK",
+      "type": "Akcie",
+      "shares": 20,
+      "totalCost": 302262.2,
+      "amount": 345600,
+      "buyDate": "2024-05-03",
+      "exemptDate": "2027-05-03"
+    },
+    {
+      "name": "NKE",
+      "type": "Akcie",
+      "shares": 200,
+      "totalCost": 335088.89,
+      "amount": 168280.48,
+      "buyDate": "2024-08-05",
+      "exemptDate": "2027-08-05"
+    },
+    {
+      "name": "ŠANTOVKA F 8,00/28",
+      "type": "Dluhopis",
+      "shares": 50,
+      "totalCost": 504333.33,
+      "amount": 504333.33,
+      "buyDate": "2024-07-17",
+      "exemptDate": "2027-07-17"
+    },
+    {
+      "name": "MRCK",
+      "type": "Akcie",
+      "shares": 145,
+      "totalCost": 359596.16000000003,
+      "amount": 464613.33,
+      "buyDate": "2024-10-31",
+      "exemptDate": "2027-10-30"
+    },
+    {
+      "name": "BAC",
+      "type": "Akcie",
+      "shares": 200,
+      "totalCost": 177212.6,
+      "amount": 218026.52,
+      "buyDate": "2024-10-01",
+      "exemptDate": "2027-10-01"
+    },
+    {
+      "name": "NVDA",
+      "type": "Akcie",
+      "shares": 200,
+      "totalCost": 515946.29000000004,
+      "amount": 812882.52,
+      "buyDate": "2025-04-21",
+      "exemptDate": "2028-04-21"
+    },
+    {
+      "name": "Raiffeisen fond amerických akcií",
+      "type": "DIP / DPS",
+      "shares": 26631,
+      "totalCost": 56978.100000000006,
+      "amount": 56978.100000000006,
+      "buyDate": "-",
+      "exemptDate": "2036-08-04"
+    },
+    {
+      "name": "CZG",
+      "type": "Akcie",
+      "shares": 200,
+      "totalCost": 137246.6,
+      "amount": 166400,
+      "buyDate": "2025-04-04",
+      "exemptDate": "2028-04-04"
+    },
+    {
+      "name": "J&T ENERGY OPF",
+      "type": "OPF",
+      "shares": 221453,
+      "totalCost": 275000,
+      "amount": 263639.8,
+      "buyDate": "2026-08-19",
+      "exemptDate": "2029-08-19"
+    },
+    {
+      "name": "J&T World Private Capital OPF",
+      "type": "PE fond",
+      "shares": 400000,
+      "totalCost": 400000,
+      "amount": 441920,
+      "buyDate": "2025-10-31",
+      "exemptDate": "2028-10-31"
+    },
+    {
+      "name": "J&T Hedge Funds OPF",
+      "type": "OPF",
+      "shares": 574768,
+      "totalCost": 600000,
+      "amount": 624255.52,
+      "buyDate": "2025-10-31",
+      "exemptDate": "2028-10-31"
+    },
+    {
+      "name": "INDIGO",
+      "type": "Akcie",
+      "shares": 1,
+      "totalCost": 121001,
+      "amount": 166961,
+      "buyDate": "2025-12-17",
+      "exemptDate": "2028-12-17"
+    },
+    {
+      "name": "CSG BV",
+      "type": "Akcie",
+      "shares": 400,
+      "totalCost": 220175.59999999998,
+      "amount": 126875.33,
+      "buyDate": "2026-05-07",
+      "exemptDate": "2029-05-07"
+    },
+    {
+      "name": "J&T ARCH II CZK H",
+      "type": "PE fond",
+      "shares": 3000,
+      "totalCost": 300000,
+      "amount": 300000,
+      "buyDate": "2026-07-08",
+      "exemptDate": "2029-07-08"
+    },
+    {
+      "name": "mBank Spořící účet",
+      "type": "Hotovost",
+      "shares": 1,
+      "totalCost": 500000,
+      "amount": 500000,
+      "buyDate": "2026-11-01",
+      "exemptDate": "2029-11-01"
+    },
+    {
+      "name": "ČSOB Spořící účet",
+      "type": "Hotovost",
+      "shares": 1,
+      "totalCost": 500000,
+      "amount": 500000,
+      "buyDate": "2026-11-01",
+      "exemptDate": "2029-11-01"
+    },
+    {
+      "name": "RB Spořící účet",
+      "type": "Hotovost",
+      "shares": 1,
+      "totalCost": 500000,
+      "amount": 500000,
+      "buyDate": "2026-11-01",
+      "exemptDate": "2029-11-01"
+    },
+    {
+      "name": "Doplňkové penzijní spoření",
+      "type": "DIP / DPS",
+      "shares": 468636.75,
+      "totalCost": 1238278.88,
+      "amount": 1238278.88,
+      "buyDate": "2026-11-06",
+      "exemptDate": "2036-08-04"
+    },
+    {
+      "name": "KB úvěr",
+      "type": "Pasivum",
+      "shares": 1,
+      "totalCost": 724148.86,
+      "amount": 724148.86,
+      "buyDate": "2026-11-06",
+      "exemptDate": "2029-11-06"
+    },
+    {
+      "name": "SXVR.DE",
+      "type": "Akcie",
+      "shares": 0.28,
+      "totalCost": 9715.52,
+      "amount": 9715.52,
+      "buyDate": "2026-09-02",
+      "exemptDate": "2029-09-02"
+    },
+    {
+      "name": "VWCE.DE",
+      "type": "Akcie",
+      "shares": 11,
+      "totalCost": 45385.86,
+      "amount": 45385.86,
+      "buyDate": "2026-10-23",
+      "exemptDate": "2029-10-23"
+    }
+  ],
+  "cashflow": [
+    {
+      "date": "2026-11-06",
+      "type": "Nákup",
+      "name": "Doplňkové penzijní spoření",
+      "shares": 468636.75,
+      "priceCurrency": 2.6423,
+      "currency": "CZK",
+      "priceCzk": 2.6423,
+      "amount": -1238278.88
+    },
+    {
+      "date": "2026-11-06",
+      "type": "Nákup",
+      "name": "KB úvěr",
+      "shares": 1,
+      "priceCurrency": 724148.86,
+      "currency": "CZK",
+      "priceCzk": 724148.86,
+      "amount": -724148.86
+    },
+    {
+      "date": "2026-11-01",
+      "type": "Nákup",
+      "name": "mBank Spořící účet",
+      "shares": 1,
+      "priceCurrency": 500000,
+      "currency": "CZK",
+      "priceCzk": 500000,
+      "amount": -500000
+    },
+    {
+      "date": "2026-11-01",
+      "type": "Nákup",
+      "name": "ČSOB Spořící účet",
+      "shares": 1,
+      "priceCurrency": 600000,
+      "currency": "CZK",
+      "priceCzk": 600000,
+      "amount": -600000
+    },
+    {
+      "date": "2026-11-01",
+      "type": "Nákup",
+      "name": "RB Spořící účet",
+      "shares": 1,
+      "priceCurrency": 500000,
+      "currency": "CZK",
+      "priceCzk": 500000,
+      "amount": -500000
+    },
+    {
+      "date": "2026-10-22",
+      "type": "Prodej",
+      "name": "J&T Realitních akcií a dluhopisů OPF",
+      "shares": 300000,
+      "priceCurrency": 1.0229,
+      "currency": "CZK",
+      "priceCzk": 1.0229,
+      "amount": 306870
+    },
+    {
+      "date": "2026-09-29",
+      "type": "Kupón",
+      "name": "JTSEC F. 1 8,25/28",
+      "shares": 50,
+      "priceCurrency": 350.62699999999995,
+      "currency": "CZK",
+      "priceCzk": 350.62699999999995,
+      "amount": 17531.35
+    },
+    {
+      "date": "2026-09-25",
+      "type": "Dividenda",
+      "name": "BAC",
+      "shares": 200,
+      "priceCurrency": 0.272,
+      "currency": "USD",
+      "priceCzk": 5.724539199999999,
+      "amount": 1144.9078399999999
+    },
+    {
+      "date": "2026-08-19",
+      "type": "Nákup",
+      "name": "J&T ENERGY OPF",
+      "shares": 18384,
+      "priceCurrency": 1.3598781549173193,
+      "currency": "CZK",
+      "priceCzk": 1.3598781549173193,
+      "amount": -25000
+    },
+    {
+      "date": "2026-08-19",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 3156,
+      "priceCurrency": 7.921419518377693,
+      "currency": "CZK",
+      "priceCzk": 7.921419518377693,
+      "amount": -25000
+    },
+    {
+      "date": "2026-08-03",
+      "type": "Dividenda",
+      "name": "CEZ",
+      "shares": 1000,
+      "priceCurrency": 35.7,
+      "currency": "CZK",
+      "priceCzk": 35.7,
+      "amount": 35700
+    },
+    {
+      "date": "2026-07-30",
+      "type": "Dividenda",
+      "name": "CZG",
+      "shares": 200,
+      "priceCurrency": 25.5,
+      "currency": "CZK",
+      "priceCzk": 25.5,
+      "amount": 5100
+    },
+    {
+      "date": "2026-07-17",
+      "type": "Nákup",
+      "name": "J&T ENERGY OPF",
+      "shares": 18331,
+      "priceCurrency": 1.3638099394468386,
+      "currency": "CZK",
+      "priceCzk": 1.3638099394468386,
+      "amount": -25000
+    },
+    {
+      "date": "2026-07-17",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 3211,
+      "priceCurrency": 7.785736530675802,
+      "currency": "CZK",
+      "priceCzk": 7.785736530675802,
+      "amount": -25000
+    },
+    {
+      "date": "2026-07-13",
+      "type": "Dividenda",
+      "name": "TABAK",
+      "shares": 10,
+      "priceCurrency": 935,
+      "currency": "CZK",
+      "priceCzk": 935,
+      "amount": 9350
+    },
+    {
+      "date": "2026-07-13",
+      "type": "Dividenda",
+      "name": "TABAK",
+      "shares": 10,
+      "priceCurrency": 935,
+      "currency": "CZK",
+      "priceCzk": 935,
+      "amount": 9350
+    },
+    {
+      "date": "2026-07-08",
+      "type": "Dividenda",
+      "name": "MRCK",
+      "shares": 145,
+      "priceCurrency": 0.7224827586206897,
+      "currency": "USD",
+      "priceCzk": 15.016515144827588,
+      "amount": 2177.3946960000003
+    },
+    {
+      "date": "2026-07-08",
+      "type": "Nákup",
+      "name": "J&T ARCH II CZK H",
+      "shares": 3000,
+      "priceCurrency": 1000,
+      "currency": "CZK",
+      "priceCzk": 1000,
+      "amount": -300000
+    },
+    {
+      "date": "2026-04-07",
+      "type": "Nákup",
+      "name": "Raiffeisen Progresivní",
+      "shares": 2734,
+      "priceCurrency": 1.4627,
+      "currency": "CZK",
+      "priceCzk": 1.4627,
+      "amount": -3999.02
+    },
+    {
+      "date": "2026-07-01",
+      "type": "Dividenda",
+      "name": "NKE",
+      "shares": 200,
+      "priceCurrency": 0.34850000000000003,
+      "currency": "USD",
+      "priceCzk": 7.2628794,
+      "amount": 1452.57588
+    },
+    {
+      "date": "2026-06-26",
+      "type": "Dividenda",
+      "name": "NVDA",
+      "shares": 200,
+      "priceCurrency": 0.21255,
+      "currency": "USD",
+      "priceCzk": 4.434706965,
+      "amount": 886.941393
+    },
+    {
+      "date": "2026-06-26",
+      "type": "Kupón",
+      "name": "ŠANTOVKA F 8,00/28",
+      "shares": 50,
+      "priceCurrency": 680,
+      "currency": "CZK",
+      "priceCzk": 680,
+      "amount": 34000
+    },
+    {
+      "date": "2026-06-26",
+      "type": "Dividenda",
+      "name": "BAC",
+      "shares": 200,
+      "priceCurrency": 0.23800000000000002,
+      "currency": "USD",
+      "priceCzk": 4.965703400000001,
+      "amount": 993.1406800000001
+    },
+    {
+      "date": "2026-06-17",
+      "type": "Nákup",
+      "name": "J&T ENERGY OPF",
+      "shares": 17491,
+      "priceCurrency": 1.4293065004859642,
+      "currency": "CZK",
+      "priceCzk": 1.4293065004859642,
+      "amount": -25000
+    },
+    {
+      "date": "2026-06-17",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 3267,
+      "priceCurrency": 7.6522803795531065,
+      "currency": "CZK",
+      "priceCzk": 7.6522803795531065,
+      "amount": -25000
+    },
+    {
+      "date": "2026-05-25",
+      "type": "Dividenda",
+      "name": "KOMB",
+      "shares": 1100,
+      "priceCurrency": 81.26,
+      "currency": "CZK",
+      "priceCzk": 81.26,
+      "amount": 89386
+    },
+    {
+      "date": "2026-05-25",
+      "type": "Dividenda",
+      "name": "KOMB",
+      "shares": 200,
+      "priceCurrency": 162.52,
+      "currency": "CZK",
+      "priceCzk": 162.52,
+      "amount": 32504
+    },
+    {
+      "date": "2026-05-19",
+      "type": "Nákup",
+      "name": "J&T ENERGY OPF",
+      "shares": 17729,
+      "priceCurrency": 1.4101190140447855,
+      "currency": "CZK",
+      "priceCzk": 1.4101190140447855,
+      "amount": -25000
+    },
+    {
+      "date": "2026-05-19",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 3350,
+      "priceCurrency": 7.462686567164179,
+      "currency": "CZK",
+      "priceCzk": 7.462686567164179,
+      "amount": -25000
+    },
+    {
+      "date": "2026-10-05",
+      "type": "Nákup",
+      "name": "Raiffeisen fond amerických akcií",
+      "shares": 1617,
+      "priceCurrency": 2.4737,
+      "currency": "CZK",
+      "priceCzk": 2.4737,
+      "amount": -3999.97
+    },
+    {
+      "date": "2026-05-07",
+      "type": "Nákup",
+      "name": "CSG BV",
+      "shares": 200,
+      "priceCurrency": 394.60900000000004,
+      "currency": "CZK",
+      "priceCzk": 394.60900000000004,
+      "amount": -78921.8
+    },
+    {
+      "date": "2026-01-05",
+      "type": "Nákup",
+      "name": "Raiffeisen Progresivní",
+      "shares": 2659,
+      "priceCurrency": 1.5043,
+      "currency": "CZK",
+      "priceCzk": 1.5043,
+      "amount": -3999.93
+    },
+    {
+      "date": "2026-04-27",
+      "type": "Dividenda",
+      "name": "ERBAG",
+      "shares": 800,
+      "priceCurrency": 0.54375,
+      "currency": "EUR",
+      "priceCzk": 13.0007875,
+      "amount": 10400.63
+    },
+    {
+      "date": "2026-04-17",
+      "type": "Nákup",
+      "name": "J&T ENERGY OPF",
+      "shares": 18943,
+      "priceCurrency": 1.3197487198437416,
+      "currency": "CZK",
+      "priceCzk": 1.3197487198437416,
+      "amount": -25000
+    },
+    {
+      "date": "2026-04-17",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1438,
+      "priceCurrency": 6.954102920723226,
+      "currency": "CZK",
+      "priceCzk": 6.954102920723226,
+      "amount": -10000
+    },
+    {
+      "date": "2026-11-04",
+      "type": "Nákup",
+      "name": "Raiffeisen fond amerických akcií",
+      "shares": 1656,
+      "priceCurrency": 2.4146,
+      "currency": "CZK",
+      "priceCzk": 2.4146,
+      "amount": -3998.58
+    },
+    {
+      "date": "2026-09-04",
+      "type": "Nákup",
+      "name": "Raiffeisen fond amerických akcií",
+      "shares": 1669,
+      "priceCurrency": 2.3953,
+      "currency": "CZK",
+      "priceCzk": 2.3953,
+      "amount": -3997.76
+    },
+    {
+      "date": "2026-04-07",
+      "type": "Dividenda",
+      "name": "MRCK",
+      "shares": 145,
+      "priceCurrency": 0.7224827586206897,
+      "currency": "USD",
+      "priceCzk": 15.042091034482759,
+      "amount": 2181.1032
+    },
+    {
+      "date": "2026-05-04",
+      "type": "Nákup",
+      "name": "Raiffeisen fond amerických akcií",
+      "shares": 433,
+      "priceCurrency": 2.2855,
+      "currency": "CZK",
+      "priceCzk": 2.2855,
+      "amount": -989.62
+    },
+    {
+      "date": "2026-05-04",
+      "type": "Nákup",
+      "name": "Raiffeisen Progresivní",
+      "shares": 2590,
+      "priceCurrency": 1.5441,
+      "currency": "CZK",
+      "priceCzk": 1.5441,
+      "amount": -3999.22
+    },
+    {
+      "date": "2026-04-01",
+      "type": "Dividenda",
+      "name": "NVDA",
+      "shares": 200,
+      "priceCurrency": 6.954102920723226,
+      "currency": "USD",
+      "priceCzk": 0.17697,
+      "amount": 35.394
+    },
+    {
+      "date": "2026-04-01",
+      "type": "Dividenda",
+      "name": "NKE",
+      "shares": 200,
+      "priceCurrency": 0.34850000000000003,
+      "currency": "USD",
+      "priceCzk": 7.25577,
+      "amount": 1451.154
+    },
+    {
+      "date": "2026-03-27",
+      "type": "Dividenda",
+      "name": "BAC",
+      "shares": 200,
+      "priceCurrency": 0.23800000000000002,
+      "currency": "USD",
+      "priceCzk": 4.95516,
+      "amount": 991.032
+    },
+    {
+      "date": "2026-03-27",
+      "type": "Kupón",
+      "name": "JTSEC F. 1 8,25/28",
+      "shares": 50,
+      "priceCurrency": 1.3197487198437416,
+      "currency": "CZK",
+      "priceCzk": 350.62699999999995,
+      "amount": 17531.35
+    },
+    {
+      "date": "2026-03-18",
+      "type": "Nákup",
+      "name": "J&T ENERGY OPF",
+      "shares": 19902,
+      "priceCurrency": 1.2561551602853984,
+      "currency": "CZK",
+      "priceCzk": 1.2561551602853984,
+      "amount": -25000
+    },
+    {
+      "date": "2026-03-18",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1501,
+      "priceCurrency": 6.662225183211192,
+      "currency": "CZK",
+      "priceCzk": 6.662225183211192,
+      "amount": -10000
+    },
+    {
+      "date": "2026-08-03",
+      "type": "Nákup",
+      "name": "Raiffeisen Progresivní",
+      "shares": 2508,
+      "priceCurrency": 1.5944,
+      "currency": "CZK",
+      "priceCzk": 1.5944,
+      "amount": -3998.76
+    },
+    {
+      "date": "2026-07-03",
+      "type": "Nákup",
+      "name": "Raiffeisen Progresivní",
+      "shares": 2497,
+      "priceCurrency": 1.6014,
+      "currency": "CZK",
+      "priceCzk": 1.6014,
+      "amount": -3998.7
+    },
+    {
+      "date": "2026-06-03",
+      "type": "Nákup",
+      "name": "Raiffeisen Progresivní",
+      "shares": 2508,
+      "priceCurrency": 1.5947,
+      "currency": "CZK",
+      "priceCzk": 1.5947,
+      "amount": -3999.51
+    },
+    {
+      "date": "2026-03-03",
+      "type": "Nákup",
+      "name": "Raiffeisen Progresivní",
+      "shares": 2676,
+      "priceCurrency": 1.4946,
+      "currency": "CZK",
+      "priceCzk": 1.4946,
+      "amount": -3999.55
+    },
+    {
+      "date": "2026-02-03",
+      "type": "Nákup",
+      "name": "Raiffeisen Progresivní",
+      "shares": 2638,
+      "priceCurrency": 1.5159,
+      "currency": "CZK",
+      "priceCzk": 1.5159,
+      "amount": -3998.94
+    },
+    {
+      "date": "2026-02-18",
+      "type": "Nákup",
+      "name": "J&T ENERGY OPF",
+      "shares": 19646,
+      "priceCurrency": 1.2725236689402424,
+      "currency": "CZK",
+      "priceCzk": 1.2725236689402424,
+      "amount": -25000
+    },
+    {
+      "date": "2026-02-18",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1475,
+      "priceCurrency": 6.779661016949152,
+      "currency": "CZK",
+      "priceCzk": 6.779661016949152,
+      "amount": -10000
+    },
+    {
+      "date": "2026-02-16",
+      "type": "Nákup",
+      "name": "CSG BV",
+      "shares": 200,
+      "priceCurrency": 706.2689999999999,
+      "currency": "CZK",
+      "priceCzk": 706.2689999999999,
+      "amount": -141253.8
+    },
+    {
+      "date": "2026-01-19",
+      "type": "Nákup",
+      "name": "J&T ENERGY OPF",
+      "shares": 21551,
+      "priceCurrency": 1.1600389773096376,
+      "currency": "CZK",
+      "priceCzk": 1.1600389773096376,
+      "amount": -25000
+    },
+    {
+      "date": "2026-01-19",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1410,
+      "priceCurrency": 7.092198581560283,
+      "currency": "CZK",
+      "priceCzk": 7.092198581560283,
+      "amount": -10000
+    },
+    {
+      "date": "2026-01-08",
+      "type": "Dividenda",
+      "name": "MRCK",
+      "shares": 145,
+      "priceCurrency": 0.722551724137931,
+      "currency": "USD",
+      "priceCzk": 14.809781413793104,
+      "amount": 2147.418305
+    },
+    {
+      "date": "2026-01-02",
+      "type": "Dividenda",
+      "name": "NKE",
+      "shares": 200,
+      "priceCurrency": 0.34850000000000003,
+      "currency": "USD",
+      "priceCzk": 7.143030250000001,
+      "amount": 1428.60605
+    },
+    {
+      "date": "2025-12-26",
+      "type": "Dividenda",
+      "name": "BAC",
+      "shares": 200,
+      "priceCurrency": 0.23800000000000002,
+      "currency": "USD",
+      "priceCzk": 4.9051800000000005,
+      "amount": 981.0360000000001
+    },
+    {
+      "date": "2025-12-26",
+      "type": "Dividenda",
+      "name": "NVDA",
+      "shares": 200,
+      "priceCurrency": 0.0085,
+      "currency": "USD",
+      "priceCzk": 0.175185,
+      "amount": 35.037
+    },
+    {
+      "date": "2025-12-17",
+      "type": "Nákup",
+      "name": "J&T ENERGY OPF",
+      "shares": 22606,
+      "priceCurrency": 1.1059,
+      "currency": "CZK",
+      "priceCzk": 1.1059,
+      "amount": -25000
+    },
+    {
+      "date": "2025-12-17",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1482,
+      "priceCurrency": 6.6466,
+      "currency": "CZK",
+      "priceCzk": 6.6466,
+      "amount": -10000
+    },
+    {
+      "date": "2025-12-17",
+      "type": "Nákup",
+      "name": "INDIGO",
+      "shares": 1,
+      "priceCurrency": 121001,
+      "currency": "CZK",
+      "priceCzk": 121001,
+      "amount": -121001
+    },
+    {
+      "date": "2025-11-20",
+      "type": "Nákup",
+      "name": "J&T ENERGY OPF",
+      "shares": 23670,
+      "priceCurrency": 1.0562,
+      "currency": "CZK",
+      "priceCzk": 1.0562,
+      "amount": -25000
+    },
+    {
+      "date": "2025-11-20",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1526,
+      "priceCurrency": 6.4555,
+      "currency": "CZK",
+      "priceCzk": 6.4555,
+      "amount": -10000
+    },
+    {
+      "date": "2025-10-31",
+      "type": "Nákup",
+      "name": "J&T World Private Capital OPF",
+      "shares": 400000,
+      "priceCurrency": 1,
+      "currency": "CZK",
+      "priceCzk": 1,
+      "amount": -400000
+    },
+    {
+      "date": "2025-10-31",
+      "type": "Nákup",
+      "name": "J&T Hedge Funds OPF",
+      "shares": 574768,
+      "priceCurrency": 1.0439,
+      "currency": "CZK",
+      "priceCzk": 1.0439,
+      "amount": -600000
+    },
+    {
+      "date": "2025-10-17",
+      "type": "Nákup",
+      "name": "J&T ENERGY OPF",
+      "shares": 23200,
+      "priceCurrency": 1.0775,
+      "currency": "CZK",
+      "priceCzk": 1.0775,
+      "amount": -25000
+    },
+    {
+      "date": "2025-10-17",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1467,
+      "priceCurrency": 6.7163,
+      "currency": "CZK",
+      "priceCzk": 6.7163,
+      "amount": -10000
+    },
+    {
+      "date": "2025-10-08",
+      "type": "Dividenda",
+      "name": "MRCK",
+      "shares": 145,
+      "priceCurrency": 0.6884827586206896,
+      "currency": "USD",
+      "priceCzk": 14.111486862068967,
+      "amount": 2046.1655950000002
+    },
+    {
+      "date": "2025-10-02",
+      "type": "Dividenda",
+      "name": "NVDA",
+      "shares": 200,
+      "priceCurrency": 0.0085,
+      "currency": "USD",
+      "priceCzk": 0.17422025000000002,
+      "amount": 34.84405
+    },
+    {
+      "date": "2025-10-01",
+      "type": "Dividenda",
+      "name": "NKE",
+      "shares": 200,
+      "priceCurrency": 0.34,
+      "currency": "USD",
+      "priceCzk": 6.968810000000001,
+      "amount": 1393.7620000000002
+    },
+    {
+      "date": "2025-09-29",
+      "type": "Kupón",
+      "name": "JTSEC F. 1 8,25/28",
+      "shares": 50,
+      "priceCurrency": 0,
+      "currency": "CZK",
+      "priceCzk": 350.62699999999995,
+      "amount": 17531.35
+    },
+    {
+      "date": "2025-09-26",
+      "type": "Dividenda",
+      "name": "BAC",
+      "shares": 200,
+      "priceCurrency": 0.23800000000000002,
+      "currency": "USD",
+      "priceCzk": 4.878167,
+      "amount": 975.6334
+    },
+    {
+      "date": "2025-09-17",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1533,
+      "priceCurrency": 6.523157208088715,
+      "currency": "CZK",
+      "priceCzk": 6.523157208088715,
+      "amount": -10000
+    },
+    {
+      "date": "2025-08-19",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1581,
+      "priceCurrency": 6.325110689437065,
+      "currency": "CZK",
+      "priceCzk": 6.325110689437065,
+      "amount": -10000
+    },
+    {
+      "date": "2025-08-01",
+      "type": "Dividenda",
+      "name": "CEZ",
+      "shares": 1000,
+      "priceCurrency": 39.95,
+      "currency": "CZK",
+      "priceCzk": 39.95,
+      "amount": 39950
+    },
+    {
+      "date": "2025-07-30",
+      "type": "Dividenda",
+      "name": "CZG",
+      "shares": 200,
+      "priceCurrency": 12.75,
+      "currency": "CZK",
+      "priceCzk": 12.75,
+      "amount": 2550
+    },
+    {
+      "date": "2025-07-17",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1634,
+      "priceCurrency": 6.119951040391677,
+      "currency": "CZK",
+      "priceCzk": 6.119951040391677,
+      "amount": -10000
+    },
+    {
+      "date": "2025-07-14",
+      "type": "Dividenda",
+      "name": "TABAK",
+      "shares": 10,
+      "priceCurrency": 1037,
+      "currency": "CZK",
+      "priceCzk": 1037,
+      "amount": 10370
+    },
+    {
+      "date": "2025-07-14",
+      "type": "Dividenda",
+      "name": "TABAK",
+      "shares": 10,
+      "priceCurrency": 1037,
+      "currency": "CZK",
+      "priceCzk": 1037,
+      "amount": 10370
+    },
+    {
+      "date": "2025-07-08",
+      "type": "Dividenda",
+      "name": "MRCK",
+      "shares": 145,
+      "priceCurrency": 0.6884827586206896,
+      "currency": "USD",
+      "priceCzk": 14.111486862068967,
+      "amount": 2046.1655950000002
+    },
+    {
+      "date": "2025-07-03",
+      "type": "Dividenda",
+      "name": "NVDA",
+      "shares": 200,
+      "priceCurrency": 0.0085,
+      "currency": "USD",
+      "priceCzk": 0.17422025000000002,
+      "amount": 34.84405
+    },
+    {
+      "date": "2025-07-01",
+      "type": "Dividenda",
+      "name": "NKE",
+      "shares": 200,
+      "priceCurrency": 0.34,
+      "currency": "USD",
+      "priceCzk": 6.968810000000001,
+      "amount": 1393.7620000000002
+    },
+    {
+      "date": "2025-06-27",
+      "type": "Dividenda",
+      "name": "BAC",
+      "shares": 200,
+      "priceCurrency": 0.221,
+      "currency": "USD",
+      "priceCzk": 4.529726500000001,
+      "amount": 905.9453000000001
+    },
+    {
+      "date": "2025-06-26",
+      "type": "Kupón",
+      "name": "ŠANTOVKA F 8,00/28",
+      "shares": 50,
+      "priceCurrency": 680,
+      "currency": "CZK",
+      "priceCzk": 680,
+      "amount": 34000
+    },
+    {
+      "date": "2025-06-18",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1690,
+      "priceCurrency": 5.9171597633136095,
+      "currency": "CZK",
+      "priceCzk": 5.9171597633136095,
+      "amount": -10000
+    },
+    {
+      "date": "2025-05-26",
+      "type": "Dividenda",
+      "name": "KOMB",
+      "shares": 200,
+      "priceCurrency": 155.21,
+      "currency": "CZK",
+      "priceCzk": 155.21,
+      "amount": 31042
+    },
+    {
+      "date": "2025-05-19",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1742,
+      "priceCurrency": 5.7405281285878305,
+      "currency": "CZK",
+      "priceCzk": 5.7405281285878305,
+      "amount": -10000
+    },
+    {
+      "date": "2025-05-05",
+      "type": "Nákup",
+      "name": "Raiffeisen fond amerických akcií",
+      "shares": 2094,
+      "priceCurrency": 1.9102,
+      "currency": "CZK",
+      "priceCzk": 1.9102,
+      "amount": -3999.96
+    },
+    {
+      "date": "2025-04-23",
+      "type": "Dividenda",
+      "name": "KOMB",
+      "shares": 1100,
+      "priceCurrency": 49.7335,
+      "currency": "CZK",
+      "priceCzk": 49.7335,
+      "amount": 54706.85
+    },
+    {
+      "date": "2025-04-21",
+      "type": "Nákup",
+      "name": "NVDA",
+      "shares": 100,
+      "priceCurrency": 96.59280000000001,
+      "currency": "USD",
+      "priceCzk": 2117.9903,
+      "amount": -211799.03
+    },
+    {
+      "date": "2025-04-17",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1900,
+      "priceCurrency": 5.2631578947368425,
+      "currency": "CZK",
+      "priceCzk": 5.2631578947368425,
+      "amount": -10000
+    },
+    {
+      "date": "2025-08-04",
+      "type": "Nákup",
+      "name": "Raiffeisen fond amerických akcií",
+      "shares": 1965,
+      "priceCurrency": 2.0353,
+      "currency": "CZK",
+      "priceCzk": 2.0353,
+      "amount": -3999.36
+    },
+    {
+      "date": "2025-04-07",
+      "type": "Dividenda",
+      "name": "MRCK",
+      "shares": 145,
+      "priceCurrency": 0.6884827586206896,
+      "currency": "USD",
+      "priceCzk": 16.421793103448273,
+      "amount": 2381.16
+    },
+    {
+      "date": "2025-04-04",
+      "type": "Nákup",
+      "name": "CZG",
+      "shares": 200,
+      "priceCurrency": 686.2330000000001,
+      "currency": "CZK",
+      "priceCzk": 686.2330000000001,
+      "amount": -137246.6
+    },
+    {
+      "date": "2025-04-02",
+      "type": "Dividenda",
+      "name": "NVDA",
+      "shares": 100,
+      "priceCurrency": 0.0085,
+      "currency": "USD",
+      "priceCzk": 0.1955,
+      "amount": 19.55
+    },
+    {
+      "date": "2025-04-01",
+      "type": "Dividenda",
+      "name": "NKE",
+      "shares": 200,
+      "priceCurrency": 0.34,
+      "currency": "USD",
+      "priceCzk": 7.69965,
+      "amount": 1539.93
+    },
+    {
+      "date": "2025-03-28",
+      "type": "Dividenda",
+      "name": "BAC",
+      "shares": 200,
+      "priceCurrency": 0.221,
+      "currency": "USD",
+      "priceCzk": 4.981,
+      "amount": 996.2
+    },
+    {
+      "date": "2025-03-27",
+      "type": "Kupón",
+      "name": "JTSEC F. 1 8,25/28",
+      "shares": 50,
+      "priceCurrency": 350.62699999999995,
+      "currency": "CZK",
+      "priceCzk": 350.62699999999995,
+      "amount": 17531.35
+    },
+    {
+      "date": "2025-12-03",
+      "type": "Nákup",
+      "name": "Raiffeisen Progresivní",
+      "shares": 2700,
+      "priceCurrency": 1.481,
+      "currency": "CZK",
+      "priceCzk": 1.481,
+      "amount": -3998.7
+    },
+    {
+      "date": "2025-11-03",
+      "type": "Nákup",
+      "name": "Raiffeisen fond amerických akcií",
+      "shares": 1835,
+      "priceCurrency": 2.1793,
+      "currency": "CZK",
+      "priceCzk": 2.1793,
+      "amount": -3999.02
+    },
+    {
+      "date": "2025-10-03",
+      "type": "Nákup",
+      "name": "Raiffeisen fond amerických akcií",
+      "shares": 1881,
+      "priceCurrency": 2.1264,
+      "currency": "CZK",
+      "priceCzk": 2.1264,
+      "amount": -3999.76
+    },
+    {
+      "date": "2025-09-03",
+      "type": "Nákup",
+      "name": "Raiffeisen fond amerických akcií",
+      "shares": 1940,
+      "priceCurrency": 2.0615,
+      "currency": "CZK",
+      "priceCzk": 2.0615,
+      "amount": -3999.31
+    },
+    {
+      "date": "2025-07-03",
+      "type": "Nákup",
+      "name": "Raiffeisen fond amerických akcií",
+      "shares": 1985,
+      "priceCurrency": 2.0149,
+      "currency": "CZK",
+      "priceCzk": 2.0149,
+      "amount": -3999.58
+    },
+    {
+      "date": "2025-06-03",
+      "type": "Nákup",
+      "name": "Raiffeisen fond amerických akcií",
+      "shares": 2027,
+      "priceCurrency": 1.9731,
+      "currency": "CZK",
+      "priceCzk": 1.9731,
+      "amount": -3999.47
+    },
+    {
+      "date": "2025-04-03",
+      "type": "Nákup",
+      "name": "Raiffeisen fond amerických akcií",
+      "shares": 2004,
+      "priceCurrency": 1.9957,
+      "currency": "CZK",
+      "priceCzk": 1.9957,
+      "amount": -3999.38
+    },
+    {
+      "date": "2025-03-03",
+      "type": "Nákup",
+      "name": "Raiffeisen fond amerických akcií",
+      "shares": 1841,
+      "priceCurrency": 2.1726,
+      "currency": "CZK",
+      "priceCzk": 2.1726,
+      "amount": -3999.76
+    },
+    {
+      "date": "2025-02-03",
+      "type": "Nákup",
+      "name": "Raiffeisen fond amerických akcií",
+      "shares": 1823,
+      "priceCurrency": 2.193,
+      "currency": "CZK",
+      "priceCzk": 2.193,
+      "amount": -3997.84
+    },
+    {
+      "date": "2025-02-19",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1756,
+      "priceCurrency": 5.694760820045558,
+      "currency": "CZK",
+      "priceCzk": 5.694760820045558,
+      "amount": -10000
+    },
+    {
+      "date": "2025-01-02",
+      "type": "Nákup",
+      "name": "Raiffeisen fond amerických akcií",
+      "shares": 1861,
+      "priceCurrency": 2.1487,
+      "currency": "CZK",
+      "priceCzk": 2.1487,
+      "amount": -3998.73
+    },
+    {
+      "date": "2025-01-27",
+      "type": "Nákup",
+      "name": "NVDA",
+      "shares": 100,
+      "priceCurrency": 126.9184,
+      "currency": "USD",
+      "priceCzk": 3041.4726,
+      "amount": -304147.26
+    },
+    {
+      "date": "2025-01-17",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1771,
+      "priceCurrency": 5.64652738565782,
+      "currency": "CZK",
+      "priceCzk": 5.64652738565782,
+      "amount": -10000
+    },
+    {
+      "date": "2025-01-08",
+      "type": "Dividenda",
+      "name": "MRCK",
+      "shares": 145,
+      "priceCurrency": 0.6884827586206896,
+      "currency": "USD",
+      "priceCzk": 16.421793103448273,
+      "amount": 2381.16
+    },
+    {
+      "date": "2025-01-02",
+      "type": "Dividenda",
+      "name": "NKE",
+      "shares": 200,
+      "priceCurrency": 0.34,
+      "currency": "USD",
+      "priceCzk": 8.14395,
+      "amount": 1628.79
+    },
+    {
+      "date": "2024-12-31",
+      "type": "Dividenda",
+      "name": "BAC",
+      "shares": 200,
+      "priceCurrency": 0.221,
+      "currency": "USD",
+      "priceCzk": 5.37914,
+      "amount": 1075.828
+    },
+    {
+      "date": "2024-12-18",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1751,
+      "priceCurrency": 5.711022272986865,
+      "currency": "CZK",
+      "priceCzk": 5.711022272986865,
+      "amount": -10000
+    },
+    {
+      "date": "2024-11-19",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1775,
+      "priceCurrency": 5.633802816901408,
+      "currency": "CZK",
+      "priceCzk": 5.633802816901408,
+      "amount": -10000
+    },
+    {
+      "date": "2024-10-31",
+      "type": "Nákup",
+      "name": "MRCK",
+      "shares": 75,
+      "priceCurrency": 103.0056,
+      "currency": "USD",
+      "priceCzk": 2404.016666666667,
+      "amount": -180301.25
+    },
+    {
+      "date": "2024-10-17",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1723,
+      "priceCurrency": 5.803830528148578,
+      "currency": "CZK",
+      "priceCzk": 5.803830528148578,
+      "amount": -10000
+    },
+    {
+      "date": "2024-10-01",
+      "type": "Nákup",
+      "name": "BAC",
+      "shares": 200,
+      "priceCurrency": 39.1682,
+      "currency": "USD",
+      "priceCzk": 886.063,
+      "amount": -177212.6
+    },
+    {
+      "date": "2024-10-01",
+      "type": "Dividenda",
+      "name": "NKE",
+      "shares": 200,
+      "priceCurrency": 0.3145,
+      "currency": "USD",
+      "priceCzk": 7.185067,
+      "amount": 1437.0134
+    },
+    {
+      "date": "2024-09-27",
+      "type": "Kupón",
+      "name": "JTSEC F. 1 8,25/28",
+      "shares": 50,
+      "priceCurrency": 350.62699999999995,
+      "currency": "CZK",
+      "priceCzk": 350.62699999999995,
+      "amount": 17531.35
+    },
+    {
+      "date": "2024-09-26",
+      "type": "Nákup",
+      "name": "MRCK",
+      "shares": 70,
+      "priceCurrency": 113.47642857142857,
+      "currency": "USD",
+      "priceCzk": 2561.355857142857,
+      "amount": -179294.91
+    },
+    {
+      "date": "2024-09-18",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1792,
+      "priceCurrency": 5.580357142857143,
+      "currency": "CZK",
+      "priceCzk": 5.580357142857143,
+      "amount": -10000
+    },
+    {
+      "date": "2024-08-19",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1808,
+      "priceCurrency": 5.530973451327434,
+      "currency": "CZK",
+      "priceCzk": 5.530973451327434,
+      "amount": -10000
+    },
+    {
+      "date": "2024-08-05",
+      "type": "Nákup",
+      "name": "NKE",
+      "shares": 100,
+      "priceCurrency": 71.62,
+      "currency": "USD",
+      "priceCzk": 1659.8652,
+      "amount": -165986.52
+    },
+    {
+      "date": "2024-08-01",
+      "type": "Dividenda",
+      "name": "CEZ",
+      "shares": 1000,
+      "priceCurrency": 39.95,
+      "currency": "CZK",
+      "priceCzk": 39.95,
+      "amount": 39950
+    },
+    {
+      "date": "2024-07-17",
+      "type": "Nákup",
+      "name": "NKE",
+      "shares": 100,
+      "priceCurrency": 72.8199,
+      "currency": "USD",
+      "priceCzk": 1691.0237,
+      "amount": -169102.37
+    },
+    {
+      "date": "2024-07-17",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1734,
+      "priceCurrency": 5.767012687427912,
+      "currency": "CZK",
+      "priceCzk": 5.767012687427912,
+      "amount": -10000
+    },
+    {
+      "date": "2024-07-17",
+      "type": "Nákup",
+      "name": "ŠANTOVKA F 8,00/28",
+      "shares": 50,
+      "priceCurrency": 10086.6666,
+      "currency": "CZK",
+      "priceCzk": 10086.6666,
+      "amount": -504333.33
+    },
+    {
+      "date": "2024-06-19",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1788,
+      "priceCurrency": 5.592841163310962,
+      "currency": "CZK",
+      "priceCzk": 5.592841163310962,
+      "amount": -10000
+    },
+    {
+      "date": "2024-06-17",
+      "type": "Dividenda",
+      "name": "TABAK",
+      "shares": 10,
+      "priceCurrency": 1037,
+      "currency": "CZK",
+      "priceCzk": 1037,
+      "amount": 10370
+    },
+    {
+      "date": "2024-05-28",
+      "type": "Dividenda",
+      "name": "KOMB",
+      "shares": 200,
+      "priceCurrency": 140.52,
+      "currency": "CZK",
+      "priceCzk": 140.52,
+      "amount": 28104
+    },
+    {
+      "date": "2024-05-17",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1737,
+      "priceCurrency": 5.757052389176741,
+      "currency": "CZK",
+      "priceCzk": 5.757052389176741,
+      "amount": -10000
+    },
+    {
+      "date": "2024-05-03",
+      "type": "Nákup",
+      "name": "TABAK",
+      "shares": 10,
+      "priceCurrency": 14926.220000000001,
+      "currency": "CZK",
+      "priceCzk": 14926.220000000001,
+      "amount": -149262.2
+    },
+    {
+      "date": "2024-04-24",
+      "type": "Dividenda",
+      "name": "KOMB",
+      "shares": 1100,
+      "priceCurrency": 53.260999999999996,
+      "currency": "CZK",
+      "priceCzk": 53.260999999999996,
+      "amount": 58587.1
+    },
+    {
+      "date": "2024-03-27",
+      "type": "Kupón",
+      "name": "JTSEC F. 1 8,25/28",
+      "shares": 50,
+      "priceCurrency": 350.62699999999995,
+      "currency": "CZK",
+      "priceCzk": 350.62699999999995,
+      "amount": 17531.35
+    },
+    {
+      "date": "2024-03-12",
+      "type": "Nákup",
+      "name": "TABAK",
+      "shares": 10,
+      "priceCurrency": 15300,
+      "currency": "CZK",
+      "priceCzk": 15300,
+      "amount": -153000
+    },
+    {
+      "date": "2024-02-19",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1890,
+      "priceCurrency": 5.291005291005291,
+      "currency": "CZK",
+      "priceCzk": 5.291005291005291,
+      "amount": -10000
+    },
+    {
+      "date": "2024-02-19",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1892,
+      "priceCurrency": 5.2854122621564485,
+      "currency": "CZK",
+      "priceCzk": 5.2854122621564485,
+      "amount": -10000
+    },
+    {
+      "date": "2024-02-19",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1863,
+      "priceCurrency": 5.367686527106817,
+      "currency": "CZK",
+      "priceCzk": 5.367686527106817,
+      "amount": -10000
+    },
+    {
+      "date": "2024-12-02",
+      "type": "Nákup",
+      "name": "Raiffeisen Progresivní",
+      "shares": 2903,
+      "priceCurrency": 1.4012,
+      "currency": "CZK",
+      "priceCzk": 1.4012,
+      "amount": -4067.68
+    },
+    {
+      "date": "2024-02-01",
+      "type": "Nákup",
+      "name": "J&T Credit Opportunities B CZK",
+      "shares": 2237.804,
+      "priceCurrency": 134.72366212590558,
+      "currency": "CZK",
+      "priceCzk": 134.72366212590558,
+      "amount": -301485.15
+    },
+    {
+      "date": "2024-01-23",
+      "type": "Nákup",
+      "name": "J&T BOND OPF",
+      "shares": 178908,
+      "priceCurrency": 1.6514378898651823,
+      "currency": "CZK",
+      "priceCzk": 1.6514378898651823,
+      "amount": -295455.45
+    },
+    {
+      "date": "2024-01-23",
+      "type": "Nákup",
+      "name": "J&T Realitních akcií a dluhopisů OPF",
+      "shares": 186898,
+      "priceCurrency": 1.0753999507752892,
+      "currency": "CZK",
+      "priceCzk": 1.0753999507752892,
+      "amount": -200990.1
+    },
+    {
+      "date": "2024-01-23",
+      "type": "Nákup",
+      "name": "J&T ARCH INVESTMENT",
+      "shares": 333334,
+      "priceCurrency": 1.503749992500015,
+      "currency": "CZK",
+      "priceCzk": 1.503749992500015,
+      "amount": -501251
+    },
+    {
+      "date": "2024-01-17",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 951,
+      "priceCurrency": 5.257623554153523,
+      "currency": "CZK",
+      "priceCzk": 5.257623554153523,
+      "amount": -5000
+    },
+    {
+      "date": "2024-11-01",
+      "type": "Nákup",
+      "name": "Raiffeisen Progresivní",
+      "shares": 2952,
+      "priceCurrency": 1.3549,
+      "currency": "CZK",
+      "priceCzk": 1.3549,
+      "amount": -3999.66
+    },
+    {
+      "date": "2024-10-01",
+      "type": "Nákup",
+      "name": "Raiffeisen Progresivní",
+      "shares": 2941,
+      "priceCurrency": 1.3597,
+      "currency": "CZK",
+      "priceCzk": 1.3597,
+      "amount": -3998.88
+    },
+    {
+      "date": "2023-12-19",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 956,
+      "priceCurrency": 5.2301255230125525,
+      "currency": "CZK",
+      "priceCzk": 5.2301255230125525,
+      "amount": -5000
+    },
+    {
+      "date": "2023-11-20",
+      "type": "Nákup",
+      "name": "J&T OPPORTUNITY OPF",
+      "shares": 1003,
+      "priceCurrency": 4.985044865403789,
+      "currency": "CZK",
+      "priceCzk": 4.985044865403789,
+      "amount": -5000
+    },
+    {
+      "date": "2023-11-03",
+      "type": "Nákup",
+      "name": "Naše ČESKO otevřený podílový fond",
+      "shares": 6409,
+      "priceCurrency": 109.22140739584958,
+      "currency": "CZK",
+      "priceCzk": 109.22140739584958,
+      "amount": -700000
+    },
+    {
+      "date": "2023-10-11",
+      "type": "Nákup",
+      "name": "J&T Realitních akcií a dluhopisů OPF",
+      "shares": 300000,
+      "priceCurrency": 1.0049505,
+      "currency": "CZK",
+      "priceCzk": 1.0049505,
+      "amount": -301485.15
+    },
+    {
+      "date": "2023-09-27",
+      "type": "Nákup",
+      "name": "JTSEC F. 1 8,25/28",
+      "shares": 50,
+      "priceCurrency": 10040,
+      "currency": "CZK",
+      "priceCzk": 10040,
+      "amount": -502000
+    },
+    {
+      "date": "2023-08-01",
+      "type": "Dividenda",
+      "name": "CEZ",
+      "shares": 1000,
+      "priceCurrency": 44.2,
+      "currency": "CZK",
+      "priceCzk": 44.2,
+      "amount": 44200
+    },
+    {
+      "date": "2023-07-24",
+      "type": "Nákup",
+      "name": "J&T ARCH INVESTMENT",
+      "shares": 724638,
+      "priceCurrency": 1.3834499984820006,
+      "currency": "CZK",
+      "priceCzk": 1.3834499984820006,
+      "amount": -1002500.44
+    },
+    {
+      "date": "2023-07-04",
+      "type": "Nákup",
+      "name": "CEZ",
+      "shares": 300,
+      "priceCurrency": 919.2976000000001,
+      "currency": "CZK",
+      "priceCzk": 919.2976000000001,
+      "amount": -275789.28
+    },
+    {
+      "date": "2023-05-15",
+      "type": "Nákup",
+      "name": "KOMB",
+      "shares": 200,
+      "priceCurrency": 664.5,
+      "currency": "CZK",
+      "priceCzk": 664.5,
+      "amount": -132900
+    },
+    {
+      "date": "2023-05-12",
+      "type": "Nákup",
+      "name": "KOMB",
+      "shares": 200,
+      "priceCurrency": 671,
+      "currency": "CZK",
+      "priceCzk": 671,
+      "amount": -134200
+    },
+    {
+      "date": "2023-04-28",
+      "type": "Nákup",
+      "name": "KOMB",
+      "shares": 100,
+      "priceCurrency": 694.5219999999999,
+      "currency": "CZK",
+      "priceCzk": 694.5219999999999,
+      "amount": -69452.2
+    },
+    {
+      "date": "2023-04-26",
+      "type": "Dividenda",
+      "name": "KOMB",
+      "shares": 1000,
+      "priceCurrency": 51.357,
+      "currency": "CZK",
+      "priceCzk": 51.357,
+      "amount": 51357
+    },
+    {
+      "date": "2022-10-07",
+      "type": "Nákup",
+      "name": "CEZ",
+      "shares": 200,
+      "priceCurrency": 883.168,
+      "currency": "CZK",
+      "priceCzk": 883.168,
+      "amount": -176633.6
+    },
+    {
+      "date": "2022-09-05",
+      "type": "Nákup",
+      "name": "CEZ",
+      "shares": 100,
+      "priceCurrency": 918.3025,
+      "currency": "CZK",
+      "priceCzk": 918.3025,
+      "amount": -91830.25
+    },
+    {
+      "date": "2022-09-01",
+      "type": "Nákup",
+      "name": "CEZ",
+      "shares": 100,
+      "priceCurrency": 977.5195,
+      "currency": "CZK",
+      "priceCzk": 977.5195,
+      "amount": -97751.95
+    },
+    {
+      "date": "2022-08-24",
+      "type": "Nákup",
+      "name": "KOMB",
+      "shares": 100,
+      "priceCurrency": 601.1965,
+      "currency": "CZK",
+      "priceCzk": 601.1965,
+      "amount": -60119.65
+    },
+    {
+      "date": "2022-08-18",
+      "type": "Nákup",
+      "name": "ERBAG",
+      "shares": 200,
+      "priceCurrency": 579.0772000000001,
+      "currency": "CZK",
+      "priceCzk": 579.0772000000001,
+      "amount": -115815.44
+    },
+    {
+      "date": "2022-08-17",
+      "type": "Nákup",
+      "name": "ERBAG",
+      "shares": 200,
+      "priceCurrency": 584.0952,
+      "currency": "CZK",
+      "priceCzk": 584.0952,
+      "amount": -116819.04
+    },
+    {
+      "date": "2022-08-17",
+      "type": "Nákup",
+      "name": "ERBAG",
+      "shares": 200,
+      "priceCurrency": 590.1168,
+      "currency": "CZK",
+      "priceCzk": 590.1168,
+      "amount": -118023.36
+    },
+    {
+      "date": "2022-08-15",
+      "type": "Nákup",
+      "name": "ERBAG",
+      "shares": 100,
+      "priceCurrency": 601.1965,
+      "currency": "CZK",
+      "priceCzk": 601.1965,
+      "amount": -60119.65
+    },
+    {
+      "date": "2022-08-10",
+      "type": "Nákup",
+      "name": "KOMB",
+      "shares": 100,
+      "priceCurrency": 601.1965,
+      "currency": "CZK",
+      "priceCzk": 601.1965,
+      "amount": -60119.65
+    },
+    {
+      "date": "2022-08-01",
+      "type": "Dividenda",
+      "name": "CEZ",
+      "shares": 300,
+      "priceCurrency": 123.25,
+      "currency": "CZK",
+      "priceCzk": 123.25,
+      "amount": 36975
+    },
+    {
+      "date": "2022-07-29",
+      "type": "Nákup",
+      "name": "KOMB",
+      "shares": 200,
+      "priceCurrency": 618.256,
+      "currency": "CZK",
+      "priceCzk": 618.256,
+      "amount": -123651.2
+    },
+    {
+      "date": "2022-07-29",
+      "type": "Nákup",
+      "name": "KOMB",
+      "shares": 100,
+      "priceCurrency": 614.242,
+      "currency": "CZK",
+      "priceCzk": 614.242,
+      "amount": -61424.2
+    },
+    {
+      "date": "2022-07-10",
+      "type": "Nákup",
+      "name": "CEZ",
+      "shares": 100,
+      "priceCurrency": 998.5825,
+      "currency": "CZK",
+      "priceCzk": 998.5825,
+      "amount": -99858.25
+    },
+    {
+      "date": "2022-07-04",
+      "type": "Nákup",
+      "name": "CEZ",
+      "shares": 100,
+      "priceCurrency": 923.32,
+      "currency": "CZK",
+      "priceCzk": 923.32,
+      "amount": -92332
+    },
+    {
+      "date": "2022-06-30",
+      "type": "Nákup",
+      "name": "ERBAG",
+      "shares": 100,
+      "priceCurrency": 597.1825,
+      "currency": "CZK",
+      "priceCzk": 597.1825,
+      "amount": -59718.25
+    },
+    {
+      "date": "2022-05-20",
+      "type": "Nákup",
+      "name": "KOMB",
+      "shares": 100,
+      "priceCurrency": 755.7355,
+      "currency": "CZK",
+      "priceCzk": 755.7355,
+      "amount": -75573.55
+    },
+    {
+      "date": "2022-05-10",
+      "type": "Nákup",
+      "name": "KOMB",
+      "shares": 100,
+      "priceCurrency": 740.683,
+      "currency": "CZK",
+      "priceCzk": 740.683,
+      "amount": -74068.3
+    },
+    {
+      "date": "2022-04-29",
+      "type": "Nákup",
+      "name": "KOMB",
+      "shares": 100,
+      "priceCurrency": 806.914,
+      "currency": "CZK",
+      "priceCzk": 806.914,
+      "amount": -80691.4
+    },
+    {
+      "date": "2022-04-29",
+      "type": "Nákup",
+      "name": "KOMB",
+      "shares": 100,
+      "priceCurrency": 790.8580000000001,
+      "currency": "CZK",
+      "priceCzk": 790.8580000000001,
+      "amount": -79085.8
+    },
+    {
+      "date": "2022-04-19",
+      "type": "Nákup",
+      "name": "CEZ",
+      "shares": 100,
+      "priceCurrency": 988.5437,
+      "currency": "CZK",
+      "priceCzk": 988.5437,
+      "amount": -98854.37
+    },
+    {
+      "date": "2022-04-19",
+      "type": "Nákup",
+      "name": "KOMB",
+      "shares": 100,
+      "priceCurrency": 825.9810000000001,
+      "currency": "CZK",
+      "priceCzk": 825.9810000000001,
+      "amount": -82598.1
+    },
+    {
+      "date": "2024-09-23",
+      "type": "Nákup",
+      "name": "Raiffeisen Progresivní",
+      "shares": 18711,
+      "priceCurrency": 1.3521,
+      "currency": "CZK",
+      "priceCzk": 1.3521,
+      "amount": -25299.14
+    },
+    {
+      "date": "2026-10-23",
+      "type": "Nákup",
+      "name": "VWCE.DE",
+      "shares": 7,
+      "priceCurrency": 169,
+      "currency": "EUR",
+      "priceCzk": 4086.42,
+      "amount": -28604.94
+    },
+    {
+      "date": "2026-10-06",
+      "type": "Nákup",
+      "name": "VWCE.DE",
+      "shares": 4,
+      "priceCurrency": 173.5,
+      "currency": "EUR",
+      "priceCzk": 4195.23,
+      "amount": -16780.92
+    },
+    {
+      "date": "2026-09-02",
+      "type": "Nákup",
+      "name": "SXVR.DE",
+      "shares": 0.28,
+      "priceCurrency": 1435,
+      "currency": "EUR",
+      "priceCzk": 34698.3,
+      "amount": -9715.52
+    },
+    {
+      "date": "2026-11-07",
+      "type": "Nákup",
+      "name": "EUR",
+      "shares": 129.88,
+      "priceCurrency": 24.1,
+      "currency": "EUR",
+      "priceCzk": 24.1,
+      "amount": -3130.11
+    }
+  ],
+  "settings": {
+    "fireAgeYears": "50",
+    "fireAgeMonths": "3",
+    "fireStart": "17111608",
+    "fireSavings": "80000",
+    "fireTarget": "25000000",
+    "fireReturn": "7.0",
+    "fireInflation": "2.5",
+    "rentaAgeYears": "55",
+    "rentaAgeMonths": "0",
+    "rentaCapital": "25000000",
+    "rentaMonthly": "110000",
+    "rentaReturn": "5",
+    "rentaInflation": "2.5",
+    "rentaIndex": true
+  }
+}

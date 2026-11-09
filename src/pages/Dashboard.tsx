@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'react'
+
 import { getInstrumentCount } from '../services/dashboard'
 import { getPortfolioStats } from '../services/positions'
+import { getXirr } from '../services/xirr'
+import { getFireMetrics } from '../services/fire'
+import { getTopPositions } from '../services/topPositions'
+import { getNetWorthStats } from '../services/netWorthStats'
+
+import AssetAllocationChart from '../components/AssetAllocationChart'
 
 export default function Dashboard() {
-  const [instrumentCount, setInstrumentCount] = useState(0)
+  const [instrumentCount, setInstrumentCount] =
+    useState(0)
 
   const [portfolioValue, setPortfolioValue] =
     useState(0)
@@ -11,9 +19,31 @@ export default function Dashboard() {
   const [investedValue, setInvestedValue] =
     useState(0)
 
-  const [profit, setProfit] = useState(0)
+  const [profit, setProfit] =
+    useState(0)
 
   const [positionCount, setPositionCount] =
+    useState(0)
+
+  const [xirr, setXirr] =
+    useState(0)
+
+  const [fireProgress, setFireProgress] =
+    useState(0)
+
+  const [fireEta, setFireEta] =
+    useState('')
+
+  const [topPositions, setTopPositions] =
+    useState<any[]>([])
+
+  const [ath, setAth] =
+    useState(0)
+
+  const [drawdown, setDrawdown] =
+    useState(0)
+
+  const [cagr, setCagr] =
     useState(0)
 
   useEffect(() => {
@@ -24,11 +54,59 @@ export default function Dashboard() {
       const stats =
         await getPortfolioStats()
 
-      setInstrumentCount(instruments)
-      setPortfolioValue(stats.portfolioValue)
-      setInvestedValue(stats.investedValue)
+      const xirrValue =
+        getXirr()
+
+      const fire =
+        getFireMetrics()
+
+      const top =
+        await getTopPositions()
+
+      const nw =
+        getNetWorthStats()
+
+      setInstrumentCount(
+        instruments
+      )
+
+      setPortfolioValue(
+        stats.portfolioValue
+      )
+
+      setInvestedValue(
+        stats.investedValue
+      )
+
       setProfit(stats.profit)
-      setPositionCount(stats.positionCount)
+
+      setPositionCount(
+        stats.positionCount
+      )
+
+      setXirr(xirrValue)
+
+      setFireProgress(
+        fire.progress
+      )
+
+      setFireEta(
+        fire.estimatedDate
+          .toLocaleDateString('cs-CZ', {
+            month: 'long',
+            year: 'numeric',
+          })
+      )
+
+      setTopPositions(top)
+
+      setAth(nw.ath)
+
+      setDrawdown(nw.drawdown)
+
+      setCagr(
+        nw.cagrSinceStart
+      )
     }
 
     load()
@@ -42,41 +120,141 @@ export default function Dashboard() {
         style={{
           display: 'grid',
           gridTemplateColumns:
-            'repeat(2, 250px)',
+            'repeat(4, 250px)',
           gap: '20px',
-          marginTop: '20px',
+          marginBottom: '40px',
         }}
       >
         <Card
-          title="Instrumenty"
-          value={instrumentCount.toString()}
-        />
-
-        <Card
           title="Portfolio"
-          value={`${portfolioValue.toLocaleString(
+          value={`${Math.round(
+            portfolioValue
+          ).toLocaleString(
             'cs-CZ'
           )} Kč`}
         />
 
         <Card
           title="Investováno"
-          value={`${investedValue.toLocaleString(
+          value={`${Math.round(
+            investedValue
+          ).toLocaleString(
             'cs-CZ'
           )} Kč`}
         />
 
         <Card
           title="Zisk"
-          value={`${profit.toLocaleString(
+          value={`${Math.round(
+            profit
+          ).toLocaleString(
             'cs-CZ'
           )} Kč`}
+        />
+
+        <Card
+          title="XIRR"
+          value={`${xirr.toFixed(
+            2
+          )} %`}
+        />
+
+        <Card
+          title="CAGR"
+          value={`${cagr.toFixed(
+            1
+          )} %`}
+        />
+
+        <Card
+          title="ATH"
+          value={`${Math.round(
+            ath
+          ).toLocaleString(
+            'cs-CZ'
+          )} Kč`}
+        />
+
+        <Card
+          title="Drawdown"
+          value={`${drawdown.toFixed(
+            1
+          )} %`}
+        />
+
+        <Card
+          title="FIRE Progress"
+          value={`${fireProgress.toFixed(
+            1
+          )} %`}
+        />
+
+        <Card
+          title="FIRE ETA"
+          value={fireEta}
         />
 
         <Card
           title="Pozice"
           value={positionCount.toString()}
         />
+
+        <Card
+          title="Instrumenty"
+          value={instrumentCount.toString()}
+        />
+      </div>
+
+      <AssetAllocationChart />
+
+      <div
+        style={{
+          marginTop: '40px',
+          background: 'white',
+          border: '1px solid #ddd',
+          borderRadius: '8px',
+          padding: '20px',
+        }}
+      >
+        <h2>Top 5 pozic</h2>
+
+        {topPositions.map(
+          (
+            position,
+            index
+          ) => (
+            <div
+              key={index}
+              style={{
+                display: 'flex',
+                justifyContent:
+                  'space-between',
+                padding: '8px 0',
+                borderBottom:
+                  '1px solid #eee',
+              }}
+            >
+              <strong>
+                {
+                  position
+                    .instruments
+                    ?.name
+                }
+              </strong>
+
+              <span>
+                {Math.round(
+                  Number(
+                    position.current_value
+                  )
+                ).toLocaleString(
+                  'cs-CZ'
+                )}{' '}
+                Kč
+              </span>
+            </div>
+          )
+        )}
       </div>
     </div>
   )
@@ -92,13 +270,22 @@ function Card({
   return (
     <div
       style={{
+        background: 'white',
         border: '1px solid #ddd',
         borderRadius: '8px',
         padding: '20px',
       }}
     >
       <h3>{title}</h3>
-      <p>{value}</p>
+
+      <p
+        style={{
+          fontSize: '22px',
+          fontWeight: 600,
+        }}
+      >
+        {value}
+      </p>
     </div>
   )
 }
