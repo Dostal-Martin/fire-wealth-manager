@@ -1,0 +1,701 @@
+# FIRE WM — Project Status
+
+> Aktuální stav projektu po dokončení MVP v1.0. Tento soubor slouží jako technický handover pro další vývoj v novém chatu nebo novém vývojovém vlákně.
+
+## 1. Přehled projektu
+
+**Název:** FIRE WM  
+**Účel:** Osobní wealth-management aplikace pro evidenci majetku, investičního portfolia, cashflow, výkonnosti a plánování finanční nezávislosti.  
+**Jazyk UI:** čeština  
+**Měna reportingu:** CZK  
+**Produkční adresa:** `https://fire.madocon.cz`  
+**Aktuální milník:** MVP v1.0, produkčně nasazeno a funkční
+
+## 2. Technologie a architektura
+
+### Frontend
+
+- React
+- TypeScript
+- Vite
+- Recharts
+- CSS bez samostatného UI frameworku
+- Česká lokalizace přes `Intl.NumberFormat('cs-CZ')`
+- Statický produkční build ve složce `dist/`
+- Hosting: Webglobe
+
+### Backend
+
+- Supabase Cloud
+- PostgreSQL
+- Supabase Auth
+- Row Level Security
+- Supabase Edge Functions
+
+### Externí data
+
+- Yahoo Finance pro tržní ceny veřejně obchodovaných instrumentů
+- FX kurzy pro USD/CZK a EUR/CZK
+- Ruční ocenění neveřejných aktiv
+- CSV import historických NAV
+
+### Produkční tok
+
+```text
+Uživatel
+   ↓
+https://fire.madocon.cz
+   ↓
+Webglobe: React/Vite frontend
+   ↓
+Supabase Auth + RLS
+   ↓
+Supabase PostgreSQL
+   ↑
+Supabase Edge Functions
+   ↓
+Yahoo Finance
+```
+
+## 3. Bezpečnost
+
+### Implementováno
+
+- Login e-mailem a heslem přes Supabase Auth
+- Auth Gate v `src/App.tsx`
+- Persistence session po reloadu
+- Odhlášení ze sidebaru
+- RLS zapnuté na finančních tabulkách
+- Role `anon` nemá přístup k finančním datům
+- Role `authenticated` má přístup k aplikaci
+- Edge Functions používají privilegované serverové oprávnění mimo frontend
+- Ve frontendu nesmí být `service_role`, secret key ani heslo databáze
+
+### Aktuální omezení
+
+Aplikace používá single-user bezpečnostní model:
+
+```text
+anon          → bez přístupu
+authenticated → přístup ke všem datům FIRE WM
+service role  → serverové Edge Functions
+```
+
+Jakýkoliv další účet vytvořený ve stejném Supabase projektu by při současných politikách mohl získat přístup k datům. Veřejná registrace proto nesmí být povolená.
+
+Pro budoucí multi-user verzi je nutné doplnit `user_id` nebo `owner_id` do tabulek a změnit RLS na pravidla podle `auth.uid()`.
+
+## 4. Databázový model
+
+### `instruments`
+
+Definice finančních instrumentů.
+
+Důležitá pole:
+
+- `id`
+- `name`
+- `ticker`
+- `isin`
+- `asset_type`
+- `currency`
+- `pricing_source`
+- `valuation_mode`
+
+Podporované režimy:
+
+```text
+pricing_source:
+- yahoo
+- manual
+
+valuation_mode:
+- unit_price
+- total_value
+```
+
+### `positions`
+
+Aktuální portfolio.
+
+Důležitá pole:
+
+- `id`
+- `instrument_id`
+- `quantity`
+- `total_cost`
+- `current_value`
+
+Pravidlo pro současné čisté jmění:
+
+```text
+SUM(positions.current_value)
+```
+
+Kladné hodnoty představují aktiva, záporné hodnoty pasiva.
+
+### `cashflows`
+
+Transakce a příjmy.
+
+Podporované typy zahrnují:
+
+- `BUY`
+- `SELL`
+- `DIVIDEND`
+- `COUPON`
+- `CONTRIBUTION`
+- `WITHDRAWAL`
+- `FEE`
+- `TAX`
+- `INTEREST`
+
+Externí cashflow se používá pro XIRR a TWR.
+
+### `portfolio_snapshots`
+
+Historie čistého jmění.
+
+Důležitá pole:
+
+- `portfolio_id`
+- `snapshot_date`
+- `net_worth`
+
+Unikátní kombinace:
+
+```text
+portfolio_id + snapshot_date
+```
+
+Dnešní snapshot se ukládá přes `upsert`, takže při více aktualizacích nevznikají duplicity.
+
+### `price_history`
+
+Historie cen instrumentů.
+
+Zdroje:
+
+- Yahoo Finance
+- Yahoo backfill
+- ruční ocenění
+- CSV NAV import
+
+Historie může obsahovat více než 14 000 řádků a načítá se stránkovaně.
+
+### `fx_history`
+
+Historické a aktuální FX kurzy používané při přepočtu portfolia do CZK.
+
+### `fire_settings`
+
+Parametry FIRE a rentové simulace.
+
+Obsahuje zejména:
+
+- roční výdaje
+- SWR
+- FIRE cíl
+- současný věk
+- měsíční investici
+- očekávaný výnos
+- inflaci
+- věk začátku renty
+- počáteční rentový kapitál
+- měsíční rentu
+- rentový výnos
+- délku renty
+- státní důchod
+- inflační indexaci
+- dynamické čerpání
+
+### `app_sync_status`
+
+Stav automatické synchronizace tržních cen.
+
+Klíč:
+
+```text
+market_prices
+```
+
+Důležitá pole:
+
+- `last_success_date`
+- `last_success_at`
+- `processed`
+- `updated_count`
+- `error_count`
+- `details`
+
+Tato tabulka nahradila původní kontrolu přes `localStorage`, takže všechna zařízení sdílejí stejný stav.
+
+## 5. Edge Functions
+
+### `update-prices`
+
+Provádí:
+
+1. načtení tržních cen veřejných instrumentů,
+2. načtení FX kurzů,
+3. zápis do `price_history`,
+4. aktualizaci `positions.current_value`,
+5. návrat statistik o průběhu aktualizace.
+
+Po úspěšné aktualizaci frontend:
+
+1. uloží dnešní snapshot čistého jmění,
+2. aktualizuje `app_sync_status`,
+3. refreshne relevantní obrazovky.
+
+### `backfill-prices`
+
+Slouží pro historický backfill cen od roku 2021.
+
+## 6. Zdroje ocenění
+
+### Yahoo instrument
+
+```text
+quantity × market price × FX rate
+```
+
+### Ruční `unit_price`
+
+```text
+quantity × manual NAV × FX rate
+```
+
+Používá se například pro neveřejné fondy a NAV importované z CSV.
+
+### Ruční `total_value`
+
+```text
+current_value = ručně zadaná celková hodnota
+```
+
+Používá se pro aktiva bez smysluplné jednotkové ceny.
+
+### Důležitá provozní poznámka
+
+Ruční ceny je nutné pravidelně aktualizovat. Neaktuální NAV může způsobit, že Portfolio, Dashboard, FIRE a denní snapshot budou podhodnocené.
+
+## 7. Aktuální čisté jmění a historie
+
+### Současný stav
+
+Aktuální čisté jmění se počítá živě z `positions.current_value`.
+
+Používají jej:
+
+- Dashboard
+- Asset Allocation
+- Portfolio
+- FIRE
+
+### Historie
+
+Historický graf používá `portfolio_snapshots`.
+
+Po úspěšné aktualizaci cen se uloží nebo aktualizuje jeden snapshot za kalendářní den.
+
+## 8. Implementované obrazovky
+
+### Přehled
+
+- Dashboard
+- Portfolio
+- FIRE
+
+### Analýza
+
+- Výkonnost
+- Vývoj majetku
+- Příjmy
+- Historie cen
+- Tržní data
+
+### Správa
+
+- Pozice
+- Instrumenty
+- Cashflow
+- Data
+
+### Další komponenty
+
+- Asset Allocation donut + kompaktní legenda
+- Instrument Detail
+- Login
+- Sidebar s účtem, logoutem a stavem tržních dat
+
+## 9. Výpočty a analytika
+
+### Portfolio
+
+- aktuální hodnota
+- pořizovací náklady
+- nerealizovaný výsledek
+- procentní výnos
+- váha pozice
+
+### Výkonnost
+
+- XIRR
+- TWR
+- CAGR čistého jmění
+- historické maximum
+- drawdown
+
+### Historie cen
+
+- aktuální cena
+- YTD
+- 1Y return
+- 3Y CAGR
+- 5Y CAGR
+- ATH
+- drawdown
+- období 1Y / 3Y / 5Y / MAX
+
+Výnosy v Historii cen jsou `price return`, nikoliv `total return`. Dividendy nejsou v cenové řadě zahrnuté.
+
+### FIRE akumulace
+
+Používá reálný výnos:
+
+```text
+real return = (1 + nominal return) / (1 + inflation) - 1
+```
+
+Výstupy:
+
+- FIRE progress
+- datum dosažení cíle
+- věk při FIRE
+- podíl vlastních vkladů a výnosů
+
+### Simulace renty
+
+Obsahuje:
+
+- počáteční kapitál
+- měsíční rentu
+- nominální výnos
+- inflaci
+- indexaci renty
+- státní důchod
+- dynamické čerpání
+- konečný kapitál
+- věk vyčerpání
+
+Simulace je deterministická. Neřeší volatilitu, sequence-of-returns risk, daně, poplatky ani mimořádné výdaje.
+
+## 10. Backup
+
+Ve Správě dat je implementován JSON export.
+
+Výstup:
+
+```text
+fire-wm-backup-YYYY-MM-DD.json
+```
+
+Standardní záloha obsahuje:
+
+- `instruments`
+- `positions`
+- `cashflows`
+- `portfolio_snapshots`
+- `fire_settings`
+- `fx_history`
+- `app_sync_status`
+
+Volitelně lze zahrnout `price_history`.
+
+Backup není šifrovaný. Musí být uložen pouze v důvěryhodném úložišti.
+
+Automatický restore zatím není implementovaný, protože jde o potenciálně destruktivní operaci vyžadující validaci, dry-run a kontrolu referenční integrity.
+
+## 11. UI a design systém
+
+### Vizuální směr
+
+- decentní private-banking styl
+- minimum barev
+- žádné gradienty
+- jemné border linie
+- minimální stíny
+- šedomodrá akcentní barva
+- zelená a červená pouze pro ekonomický význam
+
+### Formátování
+
+- text vlevo
+- čísla vpravo
+- `font-variant-numeric: tabular-nums`
+- CZK přes `Intl.NumberFormat`
+- česká data
+- procenta s desetinnou čárkou
+
+### Hlavní CSS
+
+```text
+src/styles/app.css
+```
+
+### Shell
+
+- pevný sidebar na desktopu
+- navigace seskupená na Přehled / Analýza / Správa
+- mobilní horizontální navigace
+- účet a logout v sidebaru
+- stav synchronizace tržních dat
+
+## 12. Důležité soubory
+
+```text
+src/App.tsx
+src/lib/supabase.ts
+src/styles/app.css
+
+src/pages/Login.tsx
+src/pages/Dashboard.tsx
+src/pages/Portfolio.tsx
+src/pages/Performance.tsx
+src/pages/MarketData.tsx
+src/pages/PriceHistory.tsx
+src/pages/NetWorth.tsx
+src/pages/Fire.tsx
+src/pages/Cashflow.tsx
+src/pages/Income.tsx
+src/pages/PositionManager.tsx
+src/pages/InstrumentManager.tsx
+src/pages/Admin.tsx
+src/pages/InstrumentDetail.tsx
+
+src/components/AssetAllocationChart.tsx
+
+src/services/netWorth.ts
+src/services/fireSettings.ts
+src/services/priceUpdater.ts
+src/services/priceHistory.ts
+src/services/portfolio.ts
+src/services/topPositions.ts
+src/services/backup.ts
+```
+
+## 13. Produkční konfigurace
+
+### Produkční URL
+
+```text
+https://fire.madocon.cz
+```
+
+### Hosting
+
+- Webglobe
+- na hosting se nahrává pouze obsah `dist/`
+- server obsahuje minimálně `index.html` a `assets/`
+
+### Supabase Auth URL Configuration
+
+```text
+Site URL:
+https://fire.madocon.cz
+
+Redirect URLs:
+https://fire.madocon.cz/**
+http://localhost:5173/**
+```
+
+### Vite environment variables
+
+```text
+VITE_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY
+```
+
+Tyto hodnoty jsou vložené do klientského JS při buildu. Do frontendu nikdy nepatří:
+
+- Supabase service role
+- secret key
+- databázové heslo
+
+### Produkční build
+
+```powershell
+npm run build
+```
+
+Výstup:
+
+```text
+dist/
+```
+
+Lokální kontrola produkčního buildu:
+
+```powershell
+npm run preview
+```
+
+## 14. Deployment workflow
+
+### Ruční deployment na Webglobe
+
+```text
+1. Upravit kód
+2. npm run build
+3. otestovat npm run preview
+4. commitnout změny přes GitHub Desktop
+5. pushnout na GitHub
+6. nahradit obsah produkčního adresáře obsahem dist/
+7. provést smoke test na https://fire.madocon.cz
+```
+
+Na hosting se nenahrávají:
+
+- `src/`
+- `node_modules/`
+- `.git/`
+- `.env.local`
+- `supabase/`
+- `package.json`
+
+## 15. Produkční smoke test
+
+Po každém významném deploymentu ověřit:
+
+1. odhlášený stav zobrazí Login,
+2. login funguje,
+3. session přežije reload,
+4. Dashboard načte data,
+5. Portfolio odpovídá live pozicím,
+6. FIRE odpovídá čistému jmění,
+7. Tržní data načtou ceny a FX,
+8. ruční ocenění funguje,
+9. Vývoj majetku obsahuje dnešní snapshot,
+10. změna FIRE nastavení se uloží,
+11. backup se stáhne,
+12. logout vrátí Login,
+13. anonymní uživatel nedostane data přes RLS,
+14. aplikace funguje z telefonu přes mobilní data.
+
+## 16. Známé technické poznámky
+
+### Bundle size
+
+Produkční JS bundle je přibližně 1 MB před gzipem a přibližně 276 kB po gzipu. Vite zobrazuje upozornění na chunk větší než 500 kB, ale build prochází a pro MVP to není release blocker.
+
+Budoucí optimalizace:
+
+- lazy loading stránek
+- `React.lazy()`
+- route-level code splitting
+- oddělení Recharts do samostatného chunku
+
+### Line endings
+
+GitHub Desktop může upozorňovat na konverzi LF/CRLF ve Windows. Nejde o build chybu.
+
+### Supabase relations
+
+Embedded relation `instruments(...)` může být TypeScriptem inferována jako pole. Service vrstva proto relation explicitně normalizuje na jeden objekt v:
+
+- `src/services/portfolio.ts`
+- `src/services/topPositions.ts`
+
+## 17. Pravidla pro další vývoj
+
+Při dalších změnách:
+
+1. Posílat kompletní upravené soubory, ne pouze fragmenty.
+2. Zachovat českou lokalizaci.
+3. Zachovat reportovací měnu CZK.
+4. Tržní cenu držet v nativní měně instrumentu, aktuální hodnotu pozice v CZK.
+5. Neobcházet RLS.
+6. Nevkládat serverová tajemství do React/Vite frontendu.
+7. Před deploymentem vždy spustit `npm run build`.
+8. Po deploymentu vždy provést smoke test.
+9. Ruční NAV pravidelně aktualizovat před vytvořením finálního denního snapshotu.
+10. Neprovádět destruktivní databázové změny bez backupu.
+11. Při změně databázového schématu dodat SQL migraci.
+12. Zachovat stávající decentní designový systém.
+
+## 18. Doporučený backlog pro v1.1
+
+### Vysoká priorita
+
+- upozornění na ruční ocenění starší než 35 dní
+- výraznější upozornění nad 60 dní
+- automatizované testy kritických výpočtů
+- validační kontrola konzistence live net worth vs. dnešní snapshot
+- automatizovaný deployment na Webglobe
+
+### Střední priorita
+
+- total return včetně dividend
+- portfolio vs. benchmark
+- rebalancing a cílové váhy
+- lepší mobilní tabulky
+- detailnější audit poslední aktualizace ceny
+- výběr data ručního snapshotu
+- bezpečný restore backupu s dry-run režimem
+
+### Pozdější rozšíření
+
+- Monte Carlo FIRE
+- sequence-of-returns simulace
+- volatilita a Sharpe ratio
+- více benchmarků
+- daňový modul
+- více uživatelů s `user_id` a owner-based RLS
+- automatický scheduler tržních cen bez nutnosti otevření aplikace
+
+## 19. Definice hotového MVP v1.0
+
+MVP v1.0 je považováno za dokončené, pokud platí:
+
+- produkční aplikace běží na `https://fire.madocon.cz`,
+- Auth Gate funguje,
+- RLS blokuje anonymní přístup,
+- Dashboard, Portfolio a FIRE používají stejné live čisté jmění,
+- tržní ceny a FX se aktualizují,
+- ruční ceny a NAV lze spravovat,
+- denní snapshot se ukládá přes upsert,
+- Vývoj majetku zobrazuje historii,
+- backup JSON se stáhne,
+- `npm run build` skončí bez TypeScript chyb,
+- smoke test projde na desktopu i telefonu.
+
+## 20. Úvodní prompt pro nový chat
+
+```text
+Pokračujeme ve vývoji mé aplikace FIRE WM.
+
+Stack:
+- React + TypeScript + Vite
+- Supabase Cloud
+- Supabase Auth + RLS
+- Supabase Edge Functions
+- Yahoo Finance pro ceny
+- Webglobe hosting
+- produkční adresa: https://fire.madocon.cz
+
+Aktuální stav:
+- aplikace funguje v produkci
+- Auth a RLS fungují
+- automatické ceny a FX fungují
+- ruční ocenění a CSV NAV fungují
+- price_history má historický backfill od 2021
+- automatický denní snapshot funguje
+- JSON backup funguje
+- FIRE kalkulace a simulace renty fungují
+- GUI prošlo redesignem
+- produkční build prochází
+
+Přečti přiložený PROJECT_STATUS.md a zachovej existující architekturu a design.
+Při změnách mi vždy posílej kompletní upravené soubory, ne jen úryvky.
+```
