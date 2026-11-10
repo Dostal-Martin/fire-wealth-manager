@@ -1,192 +1,986 @@
-import { useEffect, useState } from 'react'
-
-import { getNetWorthHistory } from '../services/netWorthHistory'
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 
 import {
-  ResponsiveContainer,
-  LineChart,
+  CartesianGrid,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  CartesianGrid,
 } from 'recharts'
 
+import {
+  getNetWorthHistory,
+} from '../services/netWorthHistory'
+
+type RangeOption =
+  | '1Y'
+  | '3Y'
+  | '5Y'
+  | 'MAX'
+
+type NetWorthPoint = {
+  date: string
+  amount: number
+}
+
+const DAY_MS =
+  24 * 60 * 60 * 1000
+
+function formatMoney(
+  value: number
+) {
+  return new Intl.NumberFormat(
+    'cs-CZ',
+    {
+      style: 'currency',
+      currency: 'CZK',
+      maximumFractionDigits: 0,
+    }
+  ).format(value)
+}
+
+function formatCompactMoney(
+  value: number
+) {
+  const absolute =
+    Math.abs(value)
+
+  if (
+    absolute >=
+    1_000_000
+  ) {
+    return `${(
+      value / 1_000_000
+    ).toLocaleString(
+      'cs-CZ',
+      {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 2,
+      }
+    )} mil. Kč`
+  }
+
+  if (
+    absolute >= 1_000
+  ) {
+    return `${(
+      value / 1_000
+    ).toLocaleString(
+      'cs-CZ',
+      {
+        maximumFractionDigits: 0,
+      }
+    )} tis. Kč`
+  }
+
+  return formatMoney(value)
+}
+
+function formatPercent(
+  value: number
+) {
+  if (
+    !Number.isFinite(value)
+  ) {
+    return '—'
+  }
+
+  const prefix =
+    value > 0
+      ? '+'
+      : ''
+
+  return `${prefix}${value.toLocaleString(
+    'cs-CZ',
+    {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }
+  )} %`
+}
+
+function formatDate(
+  value: string
+) {
+  const date =
+    new Date(
+      `${value}T12:00:00`
+    )
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value
+  }
+
+  return date.toLocaleDateString(
+    'cs-CZ'
+  )
+}
+
+function subtractYears(
+  dateString: string,
+  years: number
+) {
+  const date =
+    new Date(
+      `${dateString}T12:00:00Z`
+    )
+
+  date.setUTCFullYear(
+    date.getUTCFullYear() -
+      years
+  )
+
+  return date
+    .toISOString()
+    .slice(0, 10)
+}
+
+function calculateCagr(
+  startValue: number,
+  endValue: number,
+  startDate: string,
+  endDate: string
+) {
+  if (
+    startValue <= 0 ||
+    endValue <= 0
+  ) {
+    return 0
+  }
+
+  const start =
+    new Date(
+      `${startDate}T12:00:00Z`
+    )
+
+  const end =
+    new Date(
+      `${endDate}T12:00:00Z`
+    )
+
+  const years =
+    (
+      end.getTime() -
+      start.getTime()
+    ) /
+    (
+      365.25 *
+      DAY_MS
+    )
+
+  if (years <= 0) {
+    return 0
+  }
+
+  return (
+    (
+      Math.pow(
+        endValue /
+          startValue,
+        1 / years
+      ) -
+      1
+    ) *
+    100
+  )
+}
+
 export default function NetWorth() {
-  const [history, setHistory] =
-    useState<any[]>([])
+  const [
+    history,
+    setHistory,
+  ] =
+    useState<
+      NetWorthPoint[]
+    >([])
+
+  const [
+    selectedRange,
+    setSelectedRange,
+  ] =
+    useState<RangeOption>(
+      'MAX'
+    )
+
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(true)
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] =
+    useState('')
 
   useEffect(() => {
-    async function load() {
-      const data =
-        await getNetWorthHistory()
+    let cancelled = false
 
-      setHistory(data)
+    async function load() {
+      try {
+        setLoading(true)
+        setErrorMessage('')
+
+        const data =
+          await getNetWorthHistory()
+
+        if (cancelled) {
+          return
+        }
+
+        const normalized =
+          (data ?? [])
+            .map(
+              (row) => ({
+                date:
+                  row.date,
+
+                amount:
+                  Number(
+                    row.amount
+                  ),
+              })
+            )
+            .filter(
+              (row) =>
+                row.date &&
+                Number.isFinite(
+                  row.amount
+                )
+            )
+            .sort(
+              (a, b) =>
+                a.date.localeCompare(
+                  b.date
+                )
+            )
+
+        setHistory(
+          normalized
+        )
+      } catch (error) {
+        console.error(
+          'Net worth:',
+          error
+        )
+
+        if (!cancelled) {
+          setErrorMessage(
+            'Historii majetku se nepodařilo načíst.'
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
     }
 
     load()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  if (history.length === 0) {
-    return <div>Načítám historii...</div>
+  const metrics =
+    useMemo(() => {
+      if (
+        history.length === 0
+      ) {
+        return null
+      }
+
+      const first =
+        history[0]
+
+      const latest =
+        history[
+          history.length - 1
+        ]
+
+      let ath =
+        first
+
+      for (
+        const point of
+        history
+      ) {
+        if (
+          point.amount >
+          ath.amount
+        ) {
+          ath = point
+        }
+      }
+
+      const growth =
+        latest.amount -
+        first.amount
+
+      const growthPercent =
+        first.amount > 0
+          ? (
+              latest.amount /
+                first.amount -
+              1
+            ) * 100
+          : 0
+
+      const cagr =
+        calculateCagr(
+          first.amount,
+          latest.amount,
+          first.date,
+          latest.date
+        )
+
+      const drawdown =
+        ath.amount > 0
+          ? (
+              latest.amount /
+                ath.amount -
+              1
+            ) * 100
+          : 0
+
+      return {
+        first,
+
+        latest,
+
+        ath,
+
+        growth,
+
+        growthPercent,
+
+        cagr,
+
+        drawdown,
+      }
+    }, [history])
+
+  const chartData =
+    useMemo(() => {
+      if (
+        history.length === 0 ||
+        selectedRange ===
+          'MAX'
+      ) {
+        return history
+      }
+
+      const latest =
+        history[
+          history.length - 1
+        ]
+
+      const years =
+        selectedRange ===
+        '1Y'
+          ? 1
+          : selectedRange ===
+              '3Y'
+            ? 3
+            : 5
+
+      const startDate =
+        subtractYears(
+          latest.date,
+          years
+        )
+
+      return history.filter(
+        (point) =>
+          point.date >=
+          startDate
+      )
+    }, [
+      history,
+      selectedRange,
+    ])
+
+  const periodStats =
+    useMemo(() => {
+      if (
+        chartData.length === 0
+      ) {
+        return null
+      }
+
+      const first =
+        chartData[0]
+
+      const latest =
+        chartData[
+          chartData.length - 1
+        ]
+
+      const change =
+        latest.amount -
+        first.amount
+
+      const changePercent =
+        first.amount > 0
+          ? (
+              latest.amount /
+                first.amount -
+              1
+            ) * 100
+          : 0
+
+      return {
+        first,
+        latest,
+        change,
+        changePercent,
+      }
+    }, [chartData])
+
+  if (loading) {
+    return (
+      <div className="page">
+        <div className="loading-box">
+          Načítám historii
+          majetku...
+        </div>
+      </div>
+    )
   }
 
-  const startValue =
-    history[0].amount
-
-  const endValue =
-    history[history.length - 1].amount
-
-  const growth =
-    endValue - startValue
-
-  const years =
-    (new Date(
-      history[history.length - 1].date
-    ).getTime() -
-      new Date(
-        history[0].date
-      ).getTime()) /
-    (365.25 *
-      24 *
-      60 *
-      60 *
-      1000)
-
-  const cagr =
-    (
-      Math.pow(
-        endValue / startValue,
-        1 / years
-      ) - 1
-    ) * 100
+  if (
+    errorMessage ||
+    !metrics
+  ) {
+    return (
+      <div className="page">
+        <div
+          className={
+            errorMessage
+              ? 'error-box'
+              : 'empty-box'
+          }
+        >
+          {errorMessage ||
+            'Historie majetku zatím neobsahuje žádná data.'}
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div>
-      <h1>📈 Vývoj majetku</h1>
+    <div className="page">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">
+            Vývoj majetku
+          </h1>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns:
-            'repeat(4, 1fr)',
-          gap: '20px',
-          marginBottom: '30px',
-        }}
-      >
-        <MetricCard
-          title="Počáteční majetek"
-          value={`${Math.round(
-            startValue
-          ).toLocaleString(
+          <p className="page-subtitle">
+            Historický vývoj čistého
+            jmění podle uložených
+            snapshotů.
+          </p>
+        </div>
+
+        <div className="networth-header-meta">
+          {history.length.toLocaleString(
             'cs-CZ'
-          )} Kč`}
+          )}
+          {' '}
+          snapshotů
+          <br />
+          poslední{' '}
+          {formatDate(
+            metrics.latest.date
+          )}
+        </div>
+      </header>
+
+      <section className="kpi-grid">
+        <MetricCard
+          label="Aktuální majetek"
+          value={formatCompactMoney(
+            metrics.latest.amount
+          )}
+          description={formatMoney(
+            metrics.latest.amount
+          )}
         />
 
         <MetricCard
-          title="Aktuální majetek"
-          value={`${Math.round(
-            endValue
+          label="Celkový růst"
+          value={formatCompactMoney(
+            metrics.growth
+          )}
+          description={formatPercent(
+            metrics.growthPercent
+          )}
+          tone={
+            metrics.growth > 0
+              ? 'positive'
+              : metrics.growth < 0
+                ? 'negative'
+                : 'default'
+          }
+        />
+
+        <MetricCard
+          label="CAGR majetku"
+          value={formatPercent(
+            metrics.cagr
+          )}
+          description="Anualizovaný růst"
+          tone={
+            metrics.cagr > 0
+              ? 'positive'
+              : metrics.cagr < 0
+                ? 'negative'
+                : 'default'
+          }
+        />
+
+        <MetricCard
+          label="Historické maximum"
+          value={formatCompactMoney(
+            metrics.ath.amount
+          )}
+          description={formatDate(
+            metrics.ath.date
+          )}
+        />
+
+        <MetricCard
+          label="Drawdown"
+          value={formatPercent(
+            metrics.drawdown
+          )}
+          description="Od historického maxima"
+          tone={
+            metrics.drawdown < 0
+              ? 'negative'
+              : 'default'
+          }
+        />
+
+        <MetricCard
+          label="Počáteční majetek"
+          value={formatCompactMoney(
+            metrics.first.amount
+          )}
+          description={formatDate(
+            metrics.first.date
+          )}
+        />
+
+        <MetricCard
+          label="Délka historie"
+          value={`${(
+            (
+              new Date(
+                `${metrics.latest.date}T12:00:00`
+              ).getTime() -
+              new Date(
+                `${metrics.first.date}T12:00:00`
+              ).getTime()
+            ) /
+            (
+              365.25 *
+              DAY_MS
+            )
           ).toLocaleString(
-            'cs-CZ'
-          )} Kč`}
+            'cs-CZ',
+            {
+              maximumFractionDigits:
+                1,
+            }
+          )} let`}
+          description={`${formatDate(
+            metrics.first.date
+          )} až ${formatDate(
+            metrics.latest.date
+          )}`}
         />
 
         <MetricCard
-          title="Celkový růst"
-          value={`${Math.round(
-            growth
-          ).toLocaleString(
+          label="Datové body"
+          value={history.length.toLocaleString(
             'cs-CZ'
-          )} Kč`}
+          )}
+          description="Historické snapshoty"
         />
+      </section>
 
-        <MetricCard
-          title="CAGR"
-          value={`${cagr.toFixed(
-            1
-          )} % p.a.`}
-        />
-      </div>
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <h2 className="panel-title">
+              Čisté jmění
+            </h2>
 
-      <div
-        style={{
-          background: 'white',
-          border: '1px solid #ddd',
-          borderRadius: '8px',
-          padding: '20px',
-        }}
-      >
-        <ResponsiveContainer
-          width="100%"
-          height={550}
-        >
-          <LineChart data={history}>
-            <CartesianGrid
-              strokeDasharray="3 3"
-            />
+            <div className="panel-subtitle">
+              Historická hodnota v CZK
+            </div>
+          </div>
 
-            <XAxis dataKey="date" />
+          <RangeSelector
+            value={
+              selectedRange
+            }
+            onChange={
+              setSelectedRange
+            }
+          />
+        </div>
 
-            <YAxis
-              tickFormatter={(value) =>
-                `${(
-                  value / 1000000
-                ).toFixed(0)}M`
-              }
-            />
+        <div className="panel-body">
+          {periodStats && (
+            <div className="networth-period-summary">
+              <SummaryValue
+                label="Začátek období"
+                value={formatMoney(
+                  periodStats
+                    .first.amount
+                )}
+                detail={formatDate(
+                  periodStats
+                    .first.date
+                )}
+              />
 
-            <Tooltip
-              formatter={(value) => [
-                `${Math.round(
-                  Number(value)
-                ).toLocaleString(
-                  'cs-CZ'
-                )} Kč`,
-                'Majetek',
-              ]}
-            />
+              <SummaryValue
+                label="Konec období"
+                value={formatMoney(
+                  periodStats
+                    .latest.amount
+                )}
+                detail={formatDate(
+                  periodStats
+                    .latest.date
+                )}
+              />
 
-            <Line
-              type="monotone"
-              dataKey="amount"
-              stroke="#2563eb"
-              strokeWidth={3}
-              dot={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+              <SummaryValue
+                label="Změna"
+                value={formatMoney(
+                  periodStats.change
+                )}
+                detail={formatPercent(
+                  periodStats
+                    .changePercent
+                )}
+                tone={
+                  periodStats.change >
+                  0
+                    ? 'positive'
+                    : periodStats.change <
+                        0
+                      ? 'negative'
+                      : 'default'
+                }
+              />
+            </div>
+          )}
+
+          <ResponsiveContainer
+            width="100%"
+            height={470}
+          >
+            <LineChart
+              data={chartData}
+              margin={{
+                top: 10,
+                right: 18,
+                bottom: 5,
+                left: 8,
+              }}
+            >
+              <CartesianGrid
+                stroke="#eef0f3"
+                vertical={false}
+              />
+
+              <XAxis
+                dataKey="date"
+                minTickGap={40}
+                tickFormatter={(
+                  value
+                ) => {
+                  const date =
+                    new Date(
+                      `${value}T12:00:00`
+                    )
+
+                  return date.toLocaleDateString(
+                    'cs-CZ',
+                    {
+                      month:
+                        '2-digit',
+
+                      year:
+                        '2-digit',
+                    }
+                  )
+                }}
+                tick={chartTick}
+                axisLine={{
+                  stroke:
+                    '#e4e7ec',
+                }}
+                tickLine={false}
+              />
+
+              <YAxis
+                width={78}
+                tickFormatter={(
+                  value
+                ) =>
+                  `${(
+                    Number(value) /
+                    1_000_000
+                  ).toLocaleString(
+                    'cs-CZ',
+                    {
+                      maximumFractionDigits:
+                        1,
+                    }
+                  )} mil.`
+                }
+                tick={chartTick}
+                axisLine={false}
+                tickLine={false}
+              />
+
+              <Tooltip
+                content={
+                  <NetWorthTooltip />
+                }
+              />
+
+              <Line
+                type="monotone"
+                dataKey="amount"
+                stroke="#53657d"
+                strokeWidth={2.25}
+                dot={false}
+                activeDot={{
+                  r: 4,
+
+                  fill:
+                    '#344054',
+
+                  stroke:
+                    '#ffffff',
+
+                  strokeWidth:
+                    2,
+                }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+
+          <div className="networth-chart-note">
+            Graf zobrazuje čisté
+            jmění, nikoliv čistou
+            investiční výkonnost.
+            Změny mohou zahrnovat nové
+            vklady, výběry a změny
+            hodnoty investic.
+          </div>
+        </div>
+      </section>
     </div>
   )
 }
 
 function MetricCard({
-  title,
+  label,
   value,
+  description,
+  tone = 'default',
 }: {
-  title: string
+  label: string
   value: string
-}) {
-  return (
-    <div
-      style={{
-        background: 'white',
-        border: '1px solid #ddd',
-        borderRadius: '8px',
-        padding: '20px',
-      }}
-    >
-      <h3>{title}</h3>
+  description?: string
 
-      <p
+  tone?:
+    | 'default'
+    | 'positive'
+    | 'negative'
+}) {
+  const valueClass =
+    tone === 'positive'
+      ? 'positive'
+      : tone === 'negative'
+        ? 'negative'
+        : ''
+
+  return (
+    <div className="kpi-card">
+      <div className="kpi-label">
+        {label}
+      </div>
+
+      <div
+        className={`kpi-value ${valueClass}`}
+      >
+        {value}
+      </div>
+
+      {description && (
+        <div className="kpi-description">
+          {description}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RangeSelector({
+  value,
+  onChange,
+}: {
+  value: RangeOption
+
+  onChange:
+    (value: RangeOption) =>
+      void
+}) {
+  const options:
+    RangeOption[] = [
+      '1Y',
+      '3Y',
+      '5Y',
+      'MAX',
+    ]
+
+  return (
+    <div className="networth-range-selector">
+      {options.map(
+        (option) => (
+          <button
+            key={option}
+            className={
+              value === option
+                ? 'networth-range-button networth-range-button-active'
+                : 'networth-range-button'
+            }
+            onClick={() =>
+              onChange(
+                option
+              )
+            }
+          >
+            {option}
+          </button>
+        )
+      )}
+    </div>
+  )
+}
+
+function SummaryValue({
+  label,
+  value,
+  detail,
+  tone = 'default',
+}: {
+  label: string
+  value: string
+  detail?: string
+
+  tone?:
+    | 'default'
+    | 'positive'
+    | 'negative'
+}) {
+  const color =
+    tone === 'positive'
+      ? 'var(--success)'
+      : tone === 'negative'
+        ? 'var(--danger)'
+        : 'var(--text)'
+
+  return (
+    <div className="networth-summary-value">
+      <div className="networth-summary-label">
+        {label}
+      </div>
+
+      <div
+        className="networth-summary-number"
         style={{
-          fontSize: '22px',
-          fontWeight: 600,
+          color,
         }}
       >
         {value}
-      </p>
+      </div>
+
+      {detail && (
+        <div className="networth-summary-detail">
+          {detail}
+        </div>
+      )}
     </div>
   )
+}
+
+function NetWorthTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean
+
+  payload?: Array<{
+    value?: number
+  }>
+
+  label?: string
+}) {
+  if (
+    !active ||
+    !payload ||
+    payload.length === 0
+  ) {
+    return null
+  }
+
+  return (
+    <div className="networth-tooltip">
+      <div className="networth-tooltip-date">
+        {label
+          ? formatDate(
+              label
+            )
+          : '—'}
+      </div>
+
+      <div className="networth-tooltip-value">
+        {formatMoney(
+          Number(
+            payload[0].value ??
+            0
+          )
+        )}
+      </div>
+    </div>
+  )
+}
+
+const chartTick = {
+  fill: '#98a2b3',
+  fontSize: 11,
 }

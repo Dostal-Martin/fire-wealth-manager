@@ -1,5 +1,13 @@
 import { supabase } from '../lib/supabase'
 
+export type PricingSource =
+  | 'yahoo'
+  | 'manual'
+
+export type ValuationMode =
+  | 'unit_price'
+  | 'total_value'
+
 export async function getInstruments() {
   const { data, error } = await supabase
     .from('instruments')
@@ -17,22 +25,39 @@ export async function createInstrument(
   name: string,
   ticker: string,
   assetType: string,
-  currency: string
+  currency: string,
+  pricingSource: PricingSource,
+  valuationMode: ValuationMode
 ) {
+  const normalizedTicker =
+    ticker.trim() === ''
+      ? null
+      : ticker
+          .trim()
+          .toUpperCase()
+
   const { error } = await supabase
     .from('instruments')
     .insert({
-      name,
+      name:
+        name.trim(),
+
       ticker:
-        ticker.trim() === ''
-          ? null
-          : ticker.trim(),
-      asset_type: assetType,
-      currency,
+        normalizedTicker,
+
+      asset_type:
+        assetType.trim(),
+
+      currency:
+        currency.toUpperCase(),
+
       pricing_source:
-        ticker.trim() === ''
-          ? 'manual'
-          : 'yahoo',
+        normalizedTicker
+          ? pricingSource
+          : 'manual',
+
+      valuation_mode:
+        valuationMode,
     })
 
   if (error) {
@@ -45,18 +70,39 @@ export async function updateInstrument(
   name: string,
   ticker: string,
   assetType: string,
-  currency: string
+  currency: string,
+  pricingSource: PricingSource,
+  valuationMode: ValuationMode
 ) {
+  const normalizedTicker =
+    ticker.trim() === ''
+      ? null
+      : ticker
+          .trim()
+          .toUpperCase()
+
   const { error } = await supabase
     .from('instruments')
     .update({
-      name,
+      name:
+        name.trim(),
+
       ticker:
-        ticker.trim() === ''
-          ? null
-          : ticker.trim(),
-      asset_type: assetType,
-      currency,
+        normalizedTicker,
+
+      asset_type:
+        assetType.trim(),
+
+      currency:
+        currency.toUpperCase(),
+
+      pricing_source:
+        normalizedTicker
+          ? pricingSource
+          : 'manual',
+
+      valuation_mode:
+        valuationMode,
     })
     .eq('id', id)
 
