@@ -1,11 +1,14 @@
-import fireData from '../data/fireData.json'
+import { supabase } from '../lib/supabase'
 
 type Cashflow = {
   date: string
   amount: number
 }
 
-function xnpv(rate: number, cashflows: Cashflow[]) {
+function xnpv(
+  rate: number,
+  cashflows: Cashflow[]
+) {
   const firstDate = new Date(
     cashflows[0].date
   )
@@ -39,11 +42,7 @@ function calculateXirr(
 ) {
   let rate = 0.1
 
-  for (
-    let i = 0;
-    i < 100;
-    i++
-  ) {
+  for (let i = 0; i < 100; i++) {
     const npv = xnpv(rate, cashflows)
 
     const npv2 = xnpv(
@@ -70,29 +69,47 @@ function calculateXirr(
   return rate
 }
 
-export function getXirr() {
-  const cashflows: Cashflow[] =
-    fireData.cashflow.map(
+export async function getXirr() {
+  const { data: cashflows } =
+    await supabase
+      .from('cashflows')
+      .select(
+        'transaction_date,amount_czk'
+      )
+
+  const { data: positions } =
+    await supabase
+      .from('positions')
+      .select('current_value')
+
+  const flows: Cashflow[] =
+    (cashflows ?? []).map(
       (item) => ({
-        date: item.date,
-        amount: item.amount,
+        date:
+          item.transaction_date,
+        amount:
+          Number(item.amount_czk),
       })
     )
 
-  cashflows.push({
-    date:
-      fireData.history[
-        fireData.history.length - 1
-      ].date,
+  const portfolioValue =
+    (positions ?? []).reduce(
+      (sum, p) =>
+        sum +
+        Number(p.current_value),
+      0
+    )
 
-    amount:
-      fireData.history[
-        fireData.history.length - 1
-      ].amount,
+  flows.push({
+    date: new Date()
+      .toISOString()
+      .substring(0, 10),
+
+    amount: portfolioValue,
   })
 
   const result =
-    calculateXirr(cashflows)
+    calculateXirr(flows)
 
   return result * 100
 }

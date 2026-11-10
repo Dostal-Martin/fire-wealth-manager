@@ -55,7 +55,7 @@ export default function Dashboard() {
         await getPortfolioStats()
 
       const xirrValue =
-        getXirr()
+        await getXirr()
 
       const fire =
         getFireMetrics()

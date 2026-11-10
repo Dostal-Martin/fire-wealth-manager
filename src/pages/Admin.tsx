@@ -1,24 +1,42 @@
 import { useState } from 'react'
 
 import { importSnapshots } from '../services/importSnapshots'
+import { importCashflow } from '../services/importCashflow'
 
 export default function Admin() {
   const [message, setMessage] =
     useState('')
 
-  async function handleImport() {
+  async function handleImportHistory() {
     try {
       const count =
         await importSnapshots()
 
       setMessage(
-        `✅ Importováno ${count} záznamů historie`
+        `✅ Importováno ${count} snapshotů`
       )
     } catch (error) {
       console.error(error)
 
       setMessage(
-        '❌ Import selhal'
+        '❌ Import historie selhal'
+      )
+    }
+  }
+
+  async function handleImportCashflow() {
+    try {
+      const count =
+        await importCashflow()
+
+      setMessage(
+        `✅ Importováno ${count} transakcí`
+      )
+    } catch (error) {
+      console.error(error)
+
+      setMessage(
+        '❌ Import cashflow selhal'
       )
     }
   }
@@ -29,46 +47,43 @@ export default function Admin() {
 
       <div
         style={{
-          background: 'white',
-          padding: '20px',
-          borderRadius: '8px',
-          border: '1px solid #ddd',
-          maxWidth: '500px',
+          display: 'flex',
+          gap: '20px',
+          flexWrap: 'wrap',
         }}
       >
-        <h2>Historie majetku</h2>
-
-        <p>
-          Nahraje historii majetku z
-          fireData.json do tabulky
-          portfolio_snapshots.
-        </p>
-
         <button
-          onClick={handleImport}
-          style={{
-            padding:
-              '12px 20px',
-            background:
-              '#2563eb',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-          }}
+          onClick={handleImportHistory}
+          style={buttonStyle}
         >
           Import historie majetku
         </button>
 
-        <p
-          style={{
-            marginTop: '20px',
-            fontWeight: 600,
-          }}
+        <button
+          onClick={handleImportCashflow}
+          style={buttonStyle}
         >
-          {message}
-        </p>
+          Import cashflow
+        </button>
       </div>
+
+      <p
+        style={{
+          marginTop: '20px',
+          fontWeight: 600,
+        }}
+      >
+        {message}
+      </p>
     </div>
   )
+}
+
+const buttonStyle = {
+  padding: '12px 20px',
+  background: '#2563eb',
+  color: 'white',
+  border: 'none',
+  borderRadius: '8px',
+  cursor: 'pointer',
 }

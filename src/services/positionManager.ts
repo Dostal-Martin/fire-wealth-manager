@@ -16,6 +16,24 @@ export async function getInstrumentsForPosition() {
   return data ?? []
 }
 
+export async function getPositions() {
+  const { data, error } = await supabase
+    .from('positions')
+    .select(`
+      *,
+      instruments (
+        name
+      )
+    `)
+    .order('created_at')
+
+  if (error) {
+    throw error
+  }
+
+  return data ?? []
+}
+
 export async function createPosition(
   instrumentId: string,
   quantity: number,
@@ -31,6 +49,41 @@ export async function createPosition(
       total_cost: totalCost,
       current_value: currentValue,
     })
+
+  if (error) {
+    throw error
+  }
+}
+
+export async function updatePosition(
+  id: string,
+  instrumentId: string,
+  quantity: number,
+  totalCost: number,
+  currentValue: number
+) {
+  const { error } = await supabase
+    .from('positions')
+    .update({
+      instrument_id: instrumentId,
+      quantity,
+      total_cost: totalCost,
+      current_value: currentValue,
+    })
+    .eq('id', id)
+
+  if (error) {
+    throw error
+  }
+}
+
+export async function deletePosition(
+  id: string
+) {
+  const { error } = await supabase
+    .from('positions')
+    .delete()
+    .eq('id', id)
 
   if (error) {
     throw error

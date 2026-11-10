@@ -1,4 +1,6 @@
-import { getHistory } from '../services/history'
+import { useEffect, useState } from 'react'
+
+import { getNetWorthHistory } from '../services/netWorthHistory'
 
 import {
   ResponsiveContainer,
@@ -11,26 +13,40 @@ import {
 } from 'recharts'
 
 export default function NetWorth() {
-  const history = getHistory()
+  const [history, setHistory] =
+    useState<any[]>([])
+
+  useEffect(() => {
+    async function load() {
+      const data =
+        await getNetWorthHistory()
+
+      setHistory(data)
+    }
+
+    load()
+  }, [])
+
+  if (history.length === 0) {
+    return <div>Načítám historii...</div>
+  }
 
   const startValue =
     history[0].amount
 
   const endValue =
-    history[history.length - 1]
-      .amount
+    history[history.length - 1].amount
 
-  const startDate = new Date(
-    history[0].date
-  )
-
-  const endDate = new Date(
-    history[history.length - 1].date
-  )
+  const growth =
+    endValue - startValue
 
   const years =
-    (endDate.getTime() -
-      startDate.getTime()) /
+    (new Date(
+      history[history.length - 1].date
+    ).getTime() -
+      new Date(
+        history[0].date
+      ).getTime()) /
     (365.25 *
       24 *
       60 *
@@ -44,9 +60,6 @@ export default function NetWorth() {
         1 / years
       ) - 1
     ) * 100
-
-  const growth =
-    endValue - startValue
 
   return (
     <div>
@@ -113,9 +126,7 @@ export default function NetWorth() {
               strokeDasharray="3 3"
             />
 
-            <XAxis
-              dataKey="date"
-            />
+            <XAxis dataKey="date" />
 
             <YAxis
               tickFormatter={(value) =>
