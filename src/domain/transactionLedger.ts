@@ -1,111 +1,61 @@
 export type LedgerTransactionType = 'BUY' | 'SELL'
-export type InvestmentIncomeType = 'DIVIDEND' | 'COUPON'
+export type InvestmentIncomeType = 'DIVIDEND' | 'COUPON' | 'INTEREST'
 
 export type LedgerTransaction = {
-  id: string
-  portfolioId: string
-  instrumentId: string
-  transactionDate: string
-  transactionType: LedgerTransactionType
-  quantity: number
-  unitPrice: number
-  currency: string
-  fxRate: number
-  feesCzk: number
-  taxCzk: number
-  amountCzk: number
+  id: string; portfolioId: string; instrumentId: string; transactionDate: string
+  transactionType: LedgerTransactionType; quantity: number; unitPrice: number
+  currency: string; fxRate: number; feesCzk: number; taxCzk: number; amountCzk: number
   createdAt?: string | null
 }
 
 export type InvestmentIncome = {
-  id: string
-  instrumentId: string
-  transactionDate: string
-  incomeType: InvestmentIncomeType
-  amountCzk: number
+  id: string; instrumentId: string; transactionDate: string
+  incomeType: InvestmentIncomeType; amountCzk: number
 }
 
 export type InstrumentIncomeSummary = {
-  instrumentId: string
-  dividendIncomeCzk: number
-  couponIncomeCzk: number
-  investmentIncomeCzk: number
-  incomeCount: number
+  instrumentId: string; dividendIncomeCzk: number; couponIncomeCzk: number
+  interestIncomeCzk: number; investmentIncomeCzk: number; incomeCount: number
 }
 
 export type LedgerIssueCode = 'INVALID_TRANSACTION' | 'OVERSOLD_POSITION'
-
 export type LedgerIssue = {
-  transactionId: string
-  instrumentId: string
-  transactionDate: string
-  code: LedgerIssueCode
-  message: string
+  transactionId: string; instrumentId: string; transactionDate: string
+  code: LedgerIssueCode; message: string
 }
 
 export type ProcessedLedgerTransaction = {
-  id: string
-  transactionDate: string
-  transactionType: LedgerTransactionType
-  quantity: number
-  amountCzk: number
-  quantityBefore: number
-  quantityAfter: number
-  averageCostBefore: number
-  averageCostAfter: number
-  costBasisBefore: number
-  costBasisAfter: number
-  disposedCostBasis: number
-  realizedProfitLoss: number | null
+  id: string; transactionDate: string; transactionType: LedgerTransactionType
+  quantity: number; amountCzk: number; quantityBefore: number; quantityAfter: number
+  averageCostBefore: number; averageCostAfter: number; costBasisBefore: number
+  costBasisAfter: number; disposedCostBasis: number; realizedProfitLoss: number | null
   valid: boolean
 }
 
 export type InstrumentLedgerResult = {
-  portfolioId: string
-  instrumentId: string
-  buyQuantity: number
-  sellQuantity: number
-  ledgerQuantity: number
-  totalBuyAmountCzk: number
-  totalSellAmountCzk: number
-  remainingCostBasisCzk: number
-  averageCostCzk: number
-  realizedProfitLossCzk: number
-  incomeFromSalesCzk: number
-  processedTransactionCount: number
-  invalidTransactionCount: number
-  transactions: ProcessedLedgerTransaction[]
+  portfolioId: string; instrumentId: string; buyQuantity: number; sellQuantity: number
+  ledgerQuantity: number; totalBuyAmountCzk: number; totalSellAmountCzk: number
+  remainingCostBasisCzk: number; averageCostCzk: number; realizedProfitLossCzk: number
+  incomeFromSalesCzk: number; processedTransactionCount: number
+  invalidTransactionCount: number; transactions: ProcessedLedgerTransaction[]
   issues: LedgerIssue[]
 }
 
 export type InstrumentInvestmentPerformance = {
-  currentValueCzk: number
-  unrealizedProfitLossCzk: number
-  unrealizedReturnPercent: number | null
-  realizedProfitLossCzk: number
-  dividendIncomeCzk: number
-  couponIncomeCzk: number
-  investmentIncomeCzk: number
-  totalProfitLossCzk: number
+  currentValueCzk: number; unrealizedProfitLossCzk: number
+  unrealizedReturnPercent: number | null; realizedProfitLossCzk: number
+  dividendIncomeCzk: number; couponIncomeCzk: number; interestIncomeCzk: number
+  investmentIncomeCzk: number; totalProfitLossCzk: number
   totalReturnPercent: number | null
 }
 
 export type ReconciliationStatus = 'MATCH' | 'MISMATCH' | 'NO_POSITION' | 'NO_LEDGER'
-
 export type LedgerReconciliation = {
-  instrumentId: string
-  positionQuantity: number | null
-  ledgerQuantity: number
-  difference: number
-  absoluteDifference: number
-  tolerance: number
+  instrumentId: string; positionQuantity: number | null; ledgerQuantity: number
+  difference: number; absoluteDifference: number; tolerance: number
   status: ReconciliationStatus
 }
-
-export type LedgerPosition = {
-  instrumentId: string
-  quantity: number | null
-}
+export type LedgerPosition = { instrumentId: string; quantity: number | null }
 
 const DEFAULT_TOLERANCE = 0.01
 const EPSILON = 0.000000001
@@ -135,15 +85,9 @@ function isValidTransaction(t: LedgerTransaction) {
 export function calculateInstrumentLedger(transactions: LedgerTransaction[]): InstrumentLedgerResult {
   const first = transactions[0]
   const sorted = [...transactions].sort(compareTransactions)
-  let buyQuantity = 0
-  let sellQuantity = 0
-  let ledgerQuantity = 0
-  let remainingCostBasisCzk = 0
-  let totalBuyAmountCzk = 0
-  let totalSellAmountCzk = 0
-  let realizedProfitLossCzk = 0
-  let processedTransactionCount = 0
-  let invalidTransactionCount = 0
+  let buyQuantity = 0, sellQuantity = 0, ledgerQuantity = 0
+  let remainingCostBasisCzk = 0, totalBuyAmountCzk = 0, totalSellAmountCzk = 0
+  let realizedProfitLossCzk = 0, processedTransactionCount = 0, invalidTransactionCount = 0
   const processed: ProcessedLedgerTransaction[] = []
   const issues: LedgerIssue[] = []
 
@@ -191,21 +135,13 @@ export function calculateInstrumentLedger(transactions: LedgerTransaction[]): In
   }
 
   return {
-    portfolioId: first?.portfolioId ?? '',
-    instrumentId: first?.instrumentId ?? '',
-    buyQuantity: normalizeNumber(buyQuantity),
-    sellQuantity: normalizeNumber(sellQuantity),
-    ledgerQuantity: normalizeNumber(ledgerQuantity),
-    totalBuyAmountCzk: normalizeNumber(totalBuyAmountCzk),
-    totalSellAmountCzk: normalizeNumber(totalSellAmountCzk),
-    remainingCostBasisCzk: normalizeNumber(remainingCostBasisCzk),
+    portfolioId: first?.portfolioId ?? '', instrumentId: first?.instrumentId ?? '',
+    buyQuantity: normalizeNumber(buyQuantity), sellQuantity: normalizeNumber(sellQuantity),
+    ledgerQuantity: normalizeNumber(ledgerQuantity), totalBuyAmountCzk: normalizeNumber(totalBuyAmountCzk),
+    totalSellAmountCzk: normalizeNumber(totalSellAmountCzk), remainingCostBasisCzk: normalizeNumber(remainingCostBasisCzk),
     averageCostCzk: ledgerQuantity > 0 ? normalizeNumber(remainingCostBasisCzk / ledgerQuantity) : 0,
-    realizedProfitLossCzk: normalizeNumber(realizedProfitLossCzk),
-    incomeFromSalesCzk: normalizeNumber(totalSellAmountCzk),
-    processedTransactionCount,
-    invalidTransactionCount,
-    transactions: processed,
-    issues,
+    realizedProfitLossCzk: normalizeNumber(realizedProfitLossCzk), incomeFromSalesCzk: normalizeNumber(totalSellAmountCzk),
+    processedTransactionCount, invalidTransactionCount, transactions: processed, issues,
   }
 }
 
@@ -213,10 +149,14 @@ export function aggregateInvestmentIncome(incomes: InvestmentIncome[]) {
   const summaries = new Map<string, InstrumentIncomeSummary>()
   for (const income of incomes) {
     if (!income.instrumentId || !Number.isFinite(income.amountCzk)) continue
-    const current = summaries.get(income.instrumentId) ?? { instrumentId: income.instrumentId, dividendIncomeCzk: 0, couponIncomeCzk: 0, investmentIncomeCzk: 0, incomeCount: 0 }
+    const current = summaries.get(income.instrumentId) ?? {
+      instrumentId: income.instrumentId, dividendIncomeCzk: 0, couponIncomeCzk: 0,
+      interestIncomeCzk: 0, investmentIncomeCzk: 0, incomeCount: 0,
+    }
     if (income.incomeType === 'DIVIDEND') current.dividendIncomeCzk += income.amountCzk
     if (income.incomeType === 'COUPON') current.couponIncomeCzk += income.amountCzk
-    current.investmentIncomeCzk = current.dividendIncomeCzk + current.couponIncomeCzk
+    if (income.incomeType === 'INTEREST') current.interestIncomeCzk += income.amountCzk
+    current.investmentIncomeCzk = current.dividendIncomeCzk + current.couponIncomeCzk + current.interestIncomeCzk
     current.incomeCount += 1
     summaries.set(income.instrumentId, current)
   }
@@ -226,7 +166,10 @@ export function aggregateInvestmentIncome(incomes: InvestmentIncome[]) {
 export function calculateInvestmentPerformance(
   ledger: InstrumentLedgerResult,
   currentValueCzk: number,
-  income: InstrumentIncomeSummary = { instrumentId: ledger.instrumentId, dividendIncomeCzk: 0, couponIncomeCzk: 0, investmentIncomeCzk: 0, incomeCount: 0 },
+  income: InstrumentIncomeSummary = {
+    instrumentId: ledger.instrumentId, dividendIncomeCzk: 0, couponIncomeCzk: 0,
+    interestIncomeCzk: 0, investmentIncomeCzk: 0, incomeCount: 0,
+  },
 ): InstrumentInvestmentPerformance {
   const current = Number.isFinite(currentValueCzk) ? currentValueCzk : 0
   const unrealized = current - ledger.remainingCostBasisCzk
@@ -238,6 +181,7 @@ export function calculateInvestmentPerformance(
     realizedProfitLossCzk: ledger.realizedProfitLossCzk,
     dividendIncomeCzk: normalizeNumber(income.dividendIncomeCzk),
     couponIncomeCzk: normalizeNumber(income.couponIncomeCzk),
+    interestIncomeCzk: normalizeNumber(income.interestIncomeCzk),
     investmentIncomeCzk: normalizeNumber(income.investmentIncomeCzk),
     totalProfitLossCzk: normalizeNumber(total),
     totalReturnPercent: ledger.totalBuyAmountCzk > 0 ? (total / ledger.totalBuyAmountCzk) * 100 : null,
