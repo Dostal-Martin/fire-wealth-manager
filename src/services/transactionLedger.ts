@@ -1,737 +1,126 @@
+import { supabase } from '../lib/supabase'
 import {
-  supabase,
-} from '../lib/supabase'
-
-import {
+  aggregateInvestmentIncome,
   calculateInvestmentPerformance,
   calculateLedgerByInstrument,
   reconcileLedgerWithPositions,
+  type InstrumentIncomeSummary,
   type InstrumentLedgerResult,
+  type InvestmentIncome,
+  type InvestmentIncomeType,
   type LedgerPosition,
   type LedgerTransaction,
   type LedgerTransactionType,
   type ReconciliationStatus,
 } from '../domain/transactionLedger'
 
-const PORTFOLIO_ID =
-  '29cc8d4e-7548-45d0-9a11-ae4d53b55d62'
+const PORTFOLIO_ID = '29cc8d4e-7548-45d0-9a11-ae4d53b55d62'
 
 type TransactionRow = {
-  id: string
-
-  portfolio_id: string
-  instrument_id: string
-
-  transaction_date: string
-  transaction_type: string
-
-  quantity:
-    | number
-    | string
-
-  unit_price:
-    | number
-    | string
-
-  currency: string
-
-  fx_rate:
-    | number
-    | string
-
-  fees_czk:
-    | number
-    | string
-
-  tax_czk:
-    | number
-    | string
-
-  amount_czk:
-    | number
-    | string
-
-  source: string
-
-  external_id:
-    | string
-    | null
-
-  note:
-    | string
-    | null
-
-  created_at:
-    | string
-    | null
-
-  instruments:
-    | {
-        name: string
-
-        ticker:
-          | string
-          | null
-      }
-    | Array<{
-        name: string
-
-        ticker:
-          | string
-          | null
-      }>
-    | null
+  id: string; portfolio_id: string; instrument_id: string; transaction_date: string; transaction_type: string
+  quantity: number | string; unit_price: number | string; currency: string; fx_rate: number | string
+  fees_czk: number | string; tax_czk: number | string; amount_czk: number | string; created_at: string | null
+  instruments: { name: string; ticker: string | null } | Array<{ name: string; ticker: string | null }> | null
 }
 
-type PositionRow = {
-  instrument_id:
-    | string
-    | null
+type PositionRow = { instrument_id: string | null; quantity: number | string | null; current_value: number | string | null }
+type IncomeRow = { id: string; instrument_id: string | null; transaction_date: string; transaction_type: string; amount_czk: number | string }
+type PositionAggregation = { quantity: number; currentValue: number }
 
-  quantity:
-    | number
-    | string
-    | null
-
-  current_value:
-    | number
-    | string
-    | null
+export type TransactionLedgerInstrument = InstrumentLedgerResult & {
+  instrumentName: string; ticker: string | null; positionQuantity: number | null; quantityDifference: number
+  reconciliationStatus: ReconciliationStatus; currentValueCzk: number; unrealizedProfitLossCzk: number
+  unrealizedReturnPercent: number | null; dividendIncomeCzk: number; couponIncomeCzk: number
+  investmentIncomeCzk: number; totalProfitLossCzk: number; totalReturnPercent: number | null
 }
-
-type PositionAggregation = {
-  quantity: number
-  currentValue: number
-}
-
-export type TransactionLedgerInstrument =
-  InstrumentLedgerResult & {
-    instrumentName: string
-
-    ticker:
-      | string
-      | null
-
-    positionQuantity:
-      | number
-      | null
-
-    quantityDifference: number
-
-    reconciliationStatus:
-      ReconciliationStatus
-
-    currentValueCzk: number
-
-    unrealizedProfitLossCzk:
-      number
-
-    unrealizedReturnPercent:
-      | number
-      | null
-
-    totalProfitLossCzk:
-      number
-
-    totalReturnPercent:
-      | number
-      | null
-  }
 
 export type TransactionLedgerOverview = {
-  instruments:
-    TransactionLedgerInstrument[]
-
-  transactionCount: number
-  instrumentCount: number
-
-  matchedCount: number
-  mismatchCount: number
-  noPositionCount: number
-  noLedgerCount: number
-
-  invalidTransactionCount:
-    number
-
-  realizedProfitLossCzk:
-    number
-
-  unrealizedProfitLossCzk:
-    number
-
-  totalProfitLossCzk:
-    number
-
-  remainingCostBasisCzk:
-    number
-
-  currentValueCzk:
-    number
+  instruments: TransactionLedgerInstrument[]; transactionCount: number; instrumentCount: number
+  matchedCount: number; mismatchCount: number; noPositionCount: number; noLedgerCount: number
+  invalidTransactionCount: number; realizedProfitLossCzk: number; unrealizedProfitLossCzk: number
+  dividendIncomeCzk: number; couponIncomeCzk: number; investmentIncomeCzk: number
+  totalProfitLossCzk: number; remainingCostBasisCzk: number; currentValueCzk: number
 }
 
-function toFiniteNumber(
-  value: unknown,
-  fallback = 0
-) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ''
-  ) {
-    return fallback
+function toNumber(value: unknown, fallback = 0) {
+  if (value === null || value === undefined || value === '') return fallback
+  const number = Number(value)
+  return Number.isFinite(number) ? number : fallback
+}
+
+function resolveInstrument(value: TransactionRow['instruments']) { return Array.isArray(value) ? (value[0] ?? null) : value }
+function normalizeType(value: string): LedgerTransactionType { return value.toUpperCase() === 'SELL' ? 'SELL' : 'BUY' }
+function normalizeIncomeType(value: string): InvestmentIncomeType { return value.toUpperCase() === 'COUPON' ? 'COUPON' : 'DIVIDEND' }
+
+function mapTransaction(row: TransactionRow): LedgerTransaction {
+  return { id: row.id, portfolioId: row.portfolio_id, instrumentId: row.instrument_id, transactionDate: row.transaction_date,
+    transactionType: normalizeType(row.transaction_type), quantity: toNumber(row.quantity), unitPrice: toNumber(row.unit_price),
+    currency: row.currency, fxRate: toNumber(row.fx_rate), feesCzk: toNumber(row.fees_czk), taxCzk: toNumber(row.tax_czk),
+    amountCzk: toNumber(row.amount_czk), createdAt: row.created_at }
+}
+
+function aggregatePositions(rows: PositionRow[]) {
+  const result = new Map<string, PositionAggregation>()
+  for (const row of rows) {
+    if (!row.instrument_id) continue
+    const current = result.get(row.instrument_id) ?? { quantity: 0, currentValue: 0 }
+    current.quantity += toNumber(row.quantity)
+    current.currentValue += toNumber(row.current_value)
+    result.set(row.instrument_id, current)
   }
-
-  const number =
-    Number(value)
-
-  return Number.isFinite(
-    number
-  )
-    ? number
-    : fallback
-}
-
-function resolveInstrument(
-  value:
-    TransactionRow['instruments']
-) {
-  if (
-    Array.isArray(value)
-  ) {
-    return (
-      value[0] ??
-      null
-    )
-  }
-
-  return value
-}
-
-function normalizeTransactionType(
-  value: string
-):
-  LedgerTransactionType {
-  return (
-    value.toUpperCase() ===
-    'SELL'
-  )
-    ? 'SELL'
-    : 'BUY'
-}
-
-function mapTransaction(
-  row: TransactionRow
-):
-  LedgerTransaction {
-  return {
-    id:
-      row.id,
-
-    portfolioId:
-      row.portfolio_id,
-
-    instrumentId:
-      row.instrument_id,
-
-    transactionDate:
-      row.transaction_date,
-
-    transactionType:
-      normalizeTransactionType(
-        row.transaction_type
-      ),
-
-    quantity:
-      toFiniteNumber(
-        row.quantity
-      ),
-
-    unitPrice:
-      toFiniteNumber(
-        row.unit_price
-      ),
-
-    currency:
-      row.currency,
-
-    fxRate:
-      toFiniteNumber(
-        row.fx_rate
-      ),
-
-    feesCzk:
-      toFiniteNumber(
-        row.fees_czk
-      ),
-
-    taxCzk:
-      toFiniteNumber(
-        row.tax_czk
-      ),
-
-    amountCzk:
-      toFiniteNumber(
-        row.amount_czk
-      ),
-
-    createdAt:
-      row.created_at,
-  }
-}
-
-function aggregatePositions(
-  rows: PositionRow[]
-) {
-  const result =
-    new Map<
-      string,
-      PositionAggregation
-    >()
-
-  for (
-    const row of rows
-  ) {
-    if (
-      !row.instrument_id
-    ) {
-      continue
-    }
-
-    const current =
-      result.get(
-        row.instrument_id
-      ) ?? {
-        quantity: 0,
-        currentValue: 0,
-      }
-
-    current.quantity +=
-      toFiniteNumber(
-        row.quantity
-      )
-
-    current.currentValue +=
-      toFiniteNumber(
-        row.current_value
-      )
-
-    result.set(
-      row.instrument_id,
-      current
-    )
-  }
-
   return result
 }
 
-function getStatusOrder(
-  status:
-    ReconciliationStatus
-) {
-  const order:
-    Record<
-      ReconciliationStatus,
-      number
-    > = {
-      MISMATCH: 0,
-      NO_POSITION: 1,
-      NO_LEDGER: 2,
-      MATCH: 3,
-    }
+export async function getTransactionLedgerOverview(): Promise<TransactionLedgerOverview> {
+  const [transactionsResult, positionsResult, incomesResult] = await Promise.all([
+    supabase.from('transactions').select(`id, portfolio_id, instrument_id, transaction_date, transaction_type, quantity, unit_price, currency, fx_rate, fees_czk, tax_czk, amount_czk, created_at, instruments (name, ticker)`).eq('portfolio_id', PORTFOLIO_ID).order('transaction_date', { ascending: true }).order('created_at', { ascending: true }),
+    supabase.from('positions').select('instrument_id, quantity, current_value').eq('portfolio_id', PORTFOLIO_ID),
+    supabase.from('cashflows').select('id, instrument_id, transaction_date, transaction_type, amount_czk').eq('portfolio_id', PORTFOLIO_ID).in('transaction_type', ['DIVIDEND', 'COUPON']).not('instrument_id', 'is', null).order('transaction_date', { ascending: true }),
+  ])
+  if (transactionsResult.error) throw transactionsResult.error
+  if (positionsResult.error) throw positionsResult.error
+  if (incomesResult.error) throw incomesResult.error
 
-  return order[status]
-}
-
-export async function getTransactionLedgerOverview():
-  Promise<TransactionLedgerOverview> {
-  const [
-    transactionsResult,
-    positionsResult,
-  ] =
-    await Promise.all([
-      supabase
-        .from(
-          'transactions'
-        )
-        .select(`
-          id,
-          portfolio_id,
-          instrument_id,
-          transaction_date,
-          transaction_type,
-          quantity,
-          unit_price,
-          currency,
-          fx_rate,
-          fees_czk,
-          tax_czk,
-          amount_czk,
-          source,
-          external_id,
-          note,
-          created_at,
-          instruments (
-            name,
-            ticker
-          )
-        `)
-        .eq(
-          'portfolio_id',
-          PORTFOLIO_ID
-        )
-        .order(
-          'transaction_date',
-          {
-            ascending: true,
-          }
-        )
-        .order(
-          'created_at',
-          {
-            ascending: true,
-          }
-        ),
-
-      supabase
-        .from(
-          'positions'
-        )
-        .select(`
-          instrument_id,
-          quantity,
-          current_value
-        `)
-        .eq(
-          'portfolio_id',
-          PORTFOLIO_ID
-        ),
-    ])
-
-  if (
-    transactionsResult.error
-  ) {
-    throw transactionsResult.error
+  const transactionRows = (transactionsResult.data ?? []) as unknown as TransactionRow[]
+  const positionRows = (positionsResult.data ?? []) as unknown as PositionRow[]
+  const incomeRows = (incomesResult.data ?? []) as unknown as IncomeRow[]
+  const transactions = transactionRows.map(mapTransaction)
+  const incomes: InvestmentIncome[] = incomeRows.filter((r): r is IncomeRow & { instrument_id: string } => Boolean(r.instrument_id)).map((r) => ({ id: r.id, instrumentId: r.instrument_id, transactionDate: r.transaction_date, incomeType: normalizeIncomeType(r.transaction_type), amountCzk: toNumber(r.amount_czk) }))
+  const incomeByInstrument = aggregateInvestmentIncome(incomes)
+  const ledgerResults = calculateLedgerByInstrument(transactions)
+  const positionAggregation = aggregatePositions(positionRows)
+  const positions: LedgerPosition[] = Array.from(positionAggregation.entries()).map(([instrumentId, p]) => ({ instrumentId, quantity: p.quantity }))
+  const reconciliations = reconcileLedgerWithPositions(ledgerResults, positions)
+  const reconciliationByInstrument = new Map(reconciliations.map((r) => [r.instrumentId, r]))
+  const instrumentNameById = new Map<string, { name: string; ticker: string | null }>()
+  for (const row of transactionRows) {
+    const instrument = resolveInstrument(row.instruments)
+    if (instrument) instrumentNameById.set(row.instrument_id, instrument)
   }
 
-  if (
-    positionsResult.error
-  ) {
-    throw positionsResult.error
-  }
+  const emptyIncome = (instrumentId: string): InstrumentIncomeSummary => ({ instrumentId, dividendIncomeCzk: 0, couponIncomeCzk: 0, investmentIncomeCzk: 0, incomeCount: 0 })
+  const instruments: TransactionLedgerInstrument[] = ledgerResults.map((ledger) => {
+    const identity = instrumentNameById.get(ledger.instrumentId)
+    const reconciliation = reconciliationByInstrument.get(ledger.instrumentId)
+    const performance = calculateInvestmentPerformance(ledger, positionAggregation.get(ledger.instrumentId)?.currentValue ?? 0, incomeByInstrument.get(ledger.instrumentId) ?? emptyIncome(ledger.instrumentId))
+    return { ...ledger, instrumentName: identity?.name ?? ledger.instrumentId, ticker: identity?.ticker ?? null,
+      positionQuantity: reconciliation?.positionQuantity ?? null, quantityDifference: reconciliation?.difference ?? -ledger.ledgerQuantity,
+      reconciliationStatus: reconciliation?.status ?? 'NO_POSITION', ...performance }
+  })
 
-  const transactionRows =
-    (
-      transactionsResult.data ??
-      []
-    ) as unknown as TransactionRow[]
-
-  const positionRows =
-    (
-      positionsResult.data ??
-      []
-    ) as unknown as PositionRow[]
-
-  const transactions =
-    transactionRows.map(
-      mapTransaction
-    )
-
-  const ledgerResults =
-    calculateLedgerByInstrument(
-      transactions
-    )
-
-  const positionAggregation =
-    aggregatePositions(
-      positionRows
-    )
-
-  const positions:
-    LedgerPosition[] =
-      Array.from(
-        positionAggregation.entries()
-      ).map(
-        ([
-          instrumentId,
-          position,
-        ]) => ({
-          instrumentId,
-
-          quantity:
-            position.quantity,
-        })
-      )
-
-  const reconciliations =
-    reconcileLedgerWithPositions(
-      ledgerResults,
-      positions
-    )
-
-  const reconciliationByInstrument =
-    new Map(
-      reconciliations.map(
-        (reconciliation) => [
-          reconciliation.instrumentId,
-          reconciliation,
-        ]
-      )
-    )
-
-  const instrumentNameById =
-    new Map<
-      string,
-      {
-        name: string
-
-        ticker:
-          | string
-          | null
-      }
-    >()
-
-  for (
-    const row of
-    transactionRows
-  ) {
-    const instrument =
-      resolveInstrument(
-        row.instruments
-      )
-
-    if (!instrument) {
-      continue
-    }
-
-    instrumentNameById.set(
-      row.instrument_id,
-      {
-        name:
-          instrument.name,
-
-        ticker:
-          instrument.ticker,
-      }
-    )
-  }
-
-  const instruments:
-    TransactionLedgerInstrument[] =
-      ledgerResults.map(
-        (ledger) => {
-          const identity =
-            instrumentNameById.get(
-              ledger.instrumentId
-            )
-
-          const reconciliation =
-            reconciliationByInstrument.get(
-              ledger.instrumentId
-            )
-
-          const position =
-            positionAggregation.get(
-              ledger.instrumentId
-            )
-
-          const currentValueCzk =
-            position
-              ?.currentValue ??
-            0
-
-          const performance =
-            calculateInvestmentPerformance(
-              ledger,
-              currentValueCzk
-            )
-
-          const reconciliationStatus:
-            ReconciliationStatus =
-              reconciliation
-                ?.status ??
-              'NO_POSITION'
-
-          return {
-            ...ledger,
-
-            instrumentName:
-              identity
-                ?.name ??
-              ledger.instrumentId,
-
-            ticker:
-              identity
-                ?.ticker ??
-              null,
-
-            positionQuantity:
-              reconciliation
-                ?.positionQuantity ??
-              null,
-
-            quantityDifference:
-              reconciliation
-                ?.difference ??
-              -ledger.ledgerQuantity,
-
-            reconciliationStatus,
-
-            currentValueCzk:
-              performance
-                .currentValueCzk,
-
-            unrealizedProfitLossCzk:
-              performance
-                .unrealizedProfitLossCzk,
-
-            unrealizedReturnPercent:
-              performance
-                .unrealizedReturnPercent,
-
-            totalProfitLossCzk:
-              performance
-                .totalProfitLossCzk,
-
-            totalReturnPercent:
-              performance
-                .totalReturnPercent,
-          }
-        }
-      )
-
-  instruments.sort(
-    (first, second) => {
-      const statusDifference =
-        getStatusOrder(
-          first.reconciliationStatus
-        ) -
-        getStatusOrder(
-          second.reconciliationStatus
-        )
-
-      if (
-        statusDifference !==
-        0
-      ) {
-        return statusDifference
-      }
-
-      return first.instrumentName.localeCompare(
-        second.instrumentName,
-        'cs'
-      )
-    }
-  )
-
-  const matchedCount =
-    instruments.filter(
-      (instrument) =>
-        instrument.reconciliationStatus ===
-        'MATCH'
-    ).length
-
-  const mismatchCount =
-    instruments.filter(
-      (instrument) =>
-        instrument.reconciliationStatus ===
-        'MISMATCH'
-    ).length
-
-  const noPositionCount =
-    instruments.filter(
-      (instrument) =>
-        instrument.reconciliationStatus ===
-        'NO_POSITION'
-    ).length
-
-  const noLedgerCount =
-    reconciliations.filter(
-      (reconciliation) =>
-        reconciliation.status ===
-        'NO_LEDGER'
-    ).length
-
-  const invalidTransactionCount =
-    instruments.reduce(
-      (sum, instrument) =>
-        sum +
-        instrument
-          .invalidTransactionCount,
-      0
-    )
-
-  const realizedProfitLossCzk =
-    instruments.reduce(
-      (sum, instrument) =>
-        sum +
-        instrument
-          .realizedProfitLossCzk,
-      0
-    )
-
-  const unrealizedProfitLossCzk =
-    instruments.reduce(
-      (sum, instrument) =>
-        sum +
-        instrument
-          .unrealizedProfitLossCzk,
-      0
-    )
-
-  const totalProfitLossCzk =
-    instruments.reduce(
-      (sum, instrument) =>
-        sum +
-        instrument
-          .totalProfitLossCzk,
-      0
-    )
-
-  const remainingCostBasisCzk =
-    instruments.reduce(
-      (sum, instrument) =>
-        sum +
-        instrument
-          .remainingCostBasisCzk,
-      0
-    )
-
-  const currentValueCzk =
-    instruments.reduce(
-      (sum, instrument) =>
-        sum +
-        instrument
-          .currentValueCzk,
-      0
-    )
-
+  const order: Record<ReconciliationStatus, number> = { MISMATCH: 0, NO_POSITION: 1, NO_LEDGER: 2, MATCH: 3 }
+  instruments.sort((a, b) => order[a.reconciliationStatus] - order[b.reconciliationStatus] || a.instrumentName.localeCompare(b.instrumentName, 'cs'))
+  const sum = (fn: (x: TransactionLedgerInstrument) => number) => instruments.reduce((total, x) => total + fn(x), 0)
   return {
-    instruments,
-
-    transactionCount:
-      transactions.length,
-
-    instrumentCount:
-      instruments.length,
-
-    matchedCount,
-
-    mismatchCount,
-
-    noPositionCount,
-
-    noLedgerCount,
-
-    invalidTransactionCount,
-
-    realizedProfitLossCzk,
-
-    unrealizedProfitLossCzk,
-
-    totalProfitLossCzk,
-
-    remainingCostBasisCzk,
-
-    currentValueCzk,
+    instruments, transactionCount: transactions.length, instrumentCount: instruments.length,
+    matchedCount: instruments.filter((x) => x.reconciliationStatus === 'MATCH').length,
+    mismatchCount: instruments.filter((x) => x.reconciliationStatus === 'MISMATCH').length,
+    noPositionCount: instruments.filter((x) => x.reconciliationStatus === 'NO_POSITION').length,
+    noLedgerCount: reconciliations.filter((x) => x.status === 'NO_LEDGER').length,
+    invalidTransactionCount: sum((x) => x.invalidTransactionCount), realizedProfitLossCzk: sum((x) => x.realizedProfitLossCzk),
+    unrealizedProfitLossCzk: sum((x) => x.unrealizedProfitLossCzk), dividendIncomeCzk: sum((x) => x.dividendIncomeCzk),
+    couponIncomeCzk: sum((x) => x.couponIncomeCzk), investmentIncomeCzk: sum((x) => x.investmentIncomeCzk),
+    totalProfitLossCzk: sum((x) => x.totalProfitLossCzk), remainingCostBasisCzk: sum((x) => x.remainingCostBasisCzk),
+    currentValueCzk: sum((x) => x.currentValueCzk),
   }
 }
