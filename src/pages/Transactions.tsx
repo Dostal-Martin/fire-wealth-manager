@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import ManualTransactionForm from '../components/ManualTransactionForm'
+import TransactionImport from '../components/TransactionImport'
 import {
   getTransactionLedgerOverview,
   type TransactionLedgerInstrument,
   type TransactionLedgerOverview,
 } from '../services/transactionLedger'
-import ManualTransactionForm from '../components/ManualTransactionForm'
 
 type StatusFilter = 'ALL' | 'MATCH' | 'MISMATCH' | 'NO_POSITION'
-
 type Tone = 'default' | 'positive' | 'negative' | 'warning'
 
 function formatMoney(value: number) {
@@ -143,12 +143,16 @@ export default function Transactions() {
         <div>
           <h1 className="page-title">Transakce</h1>
           <p className="page-subtitle">
-            Nákupy, prodeje, dividendy, kupóny, nákladová báze a celkový investiční výsledek.
+            Nákupy, prodeje, dividendy, kupóny, úroky, nákladová báze a celkový investiční výsledek.
           </p>
         </div>
       </header>
 
-      <ManualTransactionForm onSaved={() => setRefreshVersion((value) => value + 1)} />
+      <TransactionImport onImported={() => setRefreshVersion((value) => value + 1)} />
+
+      <ManualTransactionForm
+        onSaved={() => setRefreshVersion((value) => value + 1)}
+      />
 
       <section className="kpi-grid">
         <MetricCard label="Transakce" value={overview.transactionCount.toLocaleString('cs-CZ')} description="Nákupy a prodeje" />
@@ -157,7 +161,8 @@ export default function Transactions() {
         <MetricCard label="Aktuální hodnota" value={formatCompactMoney(overview.currentValueCzk)} description={formatMoney(overview.currentValueCzk)} />
         <MetricCard label="Dividendy" value={formatCompactMoney(overview.dividendIncomeCzk)} description={formatMoney(overview.dividendIncomeCzk)} tone="positive" />
         <MetricCard label="Kupóny" value={formatCompactMoney(overview.couponIncomeCzk)} description={formatMoney(overview.couponIncomeCzk)} tone="positive" />
-        <MetricCard label="Investiční příjmy" value={formatCompactMoney(overview.investmentIncomeCzk)} description="Dividendy a kupóny" tone="positive" />
+        <MetricCard label="Úroky" value={formatCompactMoney(overview.interestIncomeCzk)} description={formatMoney(overview.interestIncomeCzk)} tone="positive" />
+        <MetricCard label="Investiční příjmy" value={formatCompactMoney(overview.investmentIncomeCzk)} description="Dividendy, kupóny a úroky" tone="positive" />
         <MetricCard
           label="Celkový investiční výsledek"
           value={formatCompactMoney(overview.totalProfitLossCzk)}
@@ -175,7 +180,7 @@ export default function Transactions() {
           <div>
             <h2 className="panel-title">Výsledek podle instrumentů</h2>
             <div className="panel-subtitle">
-              Obchodní výsledek, dividendy, kupóny a kontrola množství proti evidovaným pozicím
+              Obchodní výsledek, investiční příjmy a kontrola množství proti evidovaným pozicím
             </div>
           </div>
         </div>
@@ -233,7 +238,7 @@ export default function Transactions() {
       </section>
 
       <div style={{ marginTop: '14px', color: 'var(--text-muted)', fontSize: '11px', lineHeight: 1.5 }}>
-        Celkový investiční výsledek zahrnuje realizovaný výsledek, nerealizovaný výsledek, dividendy a kupóny. Nejde o XIRR ani TWR.
+        Celkový investiční výsledek zahrnuje realizovaný výsledek, nerealizovaný výsledek, dividendy, kupóny a úroky. Nejde o XIRR ani TWR.
       </div>
     </div>
   )
@@ -288,6 +293,7 @@ function TransactionDetail({ instrument }: { instrument: TransactionLedgerInstru
         <DetailMetric label="Realizováno" value={formatMoney(instrument.realizedProfitLossCzk)} />
         <DetailMetric label="Dividendy" value={formatMoney(instrument.dividendIncomeCzk)} />
         <DetailMetric label="Kupóny" value={formatMoney(instrument.couponIncomeCzk)} />
+        <DetailMetric label="Úroky" value={formatMoney(instrument.interestIncomeCzk)} />
         <DetailMetric label="Příjmy celkem" value={formatMoney(instrument.investmentIncomeCzk)} />
         <DetailMetric label="Celkový výsledek" value={formatMoney(instrument.totalProfitLossCzk)} />
       </div>
