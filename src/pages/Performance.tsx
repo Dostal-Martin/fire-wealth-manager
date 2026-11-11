@@ -3,6 +3,7 @@ import {
   useState,
 } from 'react'
 
+import PerformanceReturnsPanel from '../components/PerformanceReturnsPanel'
 import {
   getPerformanceStats,
 } from '../services/performance'
@@ -85,7 +86,6 @@ function formatPercent(
     {
       minimumFractionDigits:
         digits,
-
       maximumFractionDigits:
         digits,
     }
@@ -188,7 +188,7 @@ export default function Performance() {
       }
     }
 
-    load()
+    void load()
 
     return () => {
       cancelled = true
@@ -235,42 +235,14 @@ export default function Performance() {
         </div>
       </header>
 
-      {/* INVESTIČNÍ VÝKONNOST */}
+      <PerformanceReturnsPanel />
 
       <SectionHeading
-        title="Investiční výkonnost"
-        description="Metriky výnosu portfolia a skutečně investovaných prostředků."
+        title="Dlouhodobý růst majetku"
+        description="Růst čistého jmění včetně nových úspor. Nejde o čistý investiční výnos."
       />
 
       <section className="kpi-grid">
-        <MetricCard
-          label="XIRR"
-          value={formatPercent(
-            data.xirr,
-            2
-          )}
-          description="Money-weighted výnos"
-          tone={performanceTone(
-            data.xirr
-          )}
-        />
-
-        <MetricCard
-          label="TWR"
-          value={formatPercent(
-            data.twr,
-            2
-          )}
-          description={
-            data.twr !== null
-              ? 'Výnos bez vlivu externích vkladů'
-              : 'Zatím není dostatek externích cashflow dat'
-          }
-          tone={performanceTone(
-            data.twr
-          )}
-        />
-
         <MetricCard
           label="CAGR majetku"
           value={formatPercent(
@@ -297,8 +269,6 @@ export default function Performance() {
           )}
         />
       </section>
-
-      {/* MAJETEK A RIZIKO */}
 
       <SectionHeading
         title="Majetek a riziko"
@@ -352,8 +322,6 @@ export default function Performance() {
         />
       </section>
 
-      {/* METODIKA */}
-
       <section className="panel">
         <div className="panel-header">
           <div>
@@ -372,10 +340,8 @@ export default function Performance() {
           <div
             style={{
               display: 'grid',
-
               gridTemplateColumns:
                 'repeat(auto-fit, minmax(260px, 1fr))',
-
               gap: '28px',
             }}
           >
@@ -383,10 +349,12 @@ export default function Performance() {
               title="XIRR"
               description={
                 <>
-                  Zohledňuje výši i načasování
-                  peněžních toků. Vyjadřuje
-                  výnos skutečně investovaných
-                  prostředků.
+                  Peněžně vážený roční výnos.
+                  Zohledňuje přesnou výši a
+                  datum externích vkladů a
+                  výběrů. Výpočet začíná
+                  prvním evidovaným externím
+                  tokem.
                 </>
               }
             />
@@ -395,10 +363,11 @@ export default function Performance() {
               title="TWR"
               description={
                 <>
-                  Odděluje investiční výkonnost
-                  od externích vkladů a výběrů.
-                  Je vhodný pro porovnání
-                  portfolia s benchmarkem.
+                  Časově vážený výnos očištěný
+                  o externí kapitál. Výnosy
+                  jednotlivých období mezi
+                  snapshoty se geometricky
+                  řetězí.
                 </>
               }
             />
@@ -409,8 +378,10 @@ export default function Performance() {
                 <>
                   Anualizovaný růst čistého
                   jmění. Zahrnuje také nové
-                  úspory a proto nejde o čistý
-                  investiční výnos.
+                  úspory, proto nejde o čistý
+                  investiční výnos a může být
+                  dostupný za delší období než
+                  XIRR nebo TWR.
                 </>
               }
             />
@@ -430,8 +401,6 @@ export default function Performance() {
         </div>
       </section>
 
-      {/* TWR STATUS */}
-
       <section
         className="panel"
         style={{
@@ -441,12 +410,12 @@ export default function Performance() {
         <div className="panel-header">
           <div>
             <h2 className="panel-title">
-              TWR období
+              Datové období majetku
             </h2>
 
             <div className="panel-subtitle">
-              Výpočet očištěný o externí
-              cashflow
+              Období použité pro historické
+              metriky čistého jmění
             </div>
           </div>
         </div>
@@ -455,35 +424,48 @@ export default function Performance() {
           <div
             style={{
               display: 'grid',
-
               gridTemplateColumns:
-                'minmax(160px, 0.7fr) minmax(160px, 0.7fr) minmax(300px, 2fr)',
-
+                'repeat(auto-fit, minmax(180px, 1fr))',
               gap: '24px',
-
               alignItems: 'start',
             }}
           >
             <InfoValue
-              label="Od"
+              label="Počáteční datum"
               value={formatDate(
                 data.twrStartDate
               )}
             />
 
             <InfoValue
-              label="Do"
+              label="Koncové datum"
               value={formatDate(
                 data.twrEndDate
               )}
             />
 
             <InfoValue
-              label="Stav"
+              label="Původní stav výpočtu"
               value={
                 data.twrMessage
               }
             />
+          </div>
+
+          <div
+            style={{
+              marginTop: '14px',
+              color: 'var(--text-muted)',
+              fontSize: '10px',
+              lineHeight: 1.5,
+            }}
+          >
+            Nové XIRR a TWR výše používají
+            pouze cashflow označené jako
+            externí a snapshoty od prvního
+            takového toku. Tento blok zachovává
+            období původní historické služby
+            kvůli kontrole dat.
           </div>
         </div>
       </section>
@@ -508,13 +490,10 @@ function SectionHeading({
       <h2
         style={{
           margin: 0,
-
           color:
             'var(--text)',
-
           fontSize:
             '16px',
-
           fontWeight:
             600,
         }}
@@ -526,13 +505,10 @@ function SectionHeading({
         style={{
           margin:
             '5px 0 0',
-
           color:
             'var(--text-muted)',
-
           fontSize:
             '12px',
-
           lineHeight:
             1.5,
         }}
@@ -552,7 +528,6 @@ function MetricCard({
   label: string
   value: string
   description?: string
-
   tone?:
     | 'default'
     | 'positive'
@@ -600,13 +575,10 @@ function MethodBlock({
         style={{
           marginBottom:
             '7px',
-
           color:
             'var(--text)',
-
           fontSize:
             '13px',
-
           fontWeight:
             600,
         }}
@@ -618,10 +590,8 @@ function MethodBlock({
         style={{
           color:
             'var(--text-secondary)',
-
           fontSize:
             '13px',
-
           lineHeight:
             1.65,
         }}
@@ -645,13 +615,10 @@ function InfoValue({
         style={{
           marginBottom:
             '6px',
-
           color:
             'var(--text-muted)',
-
           fontSize:
             '11px',
-
           fontWeight:
             600,
         }}
@@ -663,16 +630,12 @@ function InfoValue({
         style={{
           color:
             'var(--text)',
-
           fontSize:
             '13px',
-
           fontWeight:
             500,
-
           lineHeight:
             1.55,
-
           fontVariantNumeric:
             'tabular-nums',
         }}
