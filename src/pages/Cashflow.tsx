@@ -5,6 +5,7 @@ import {
 } from 'react'
 
 import ExternalCashflowForm from '../components/ExternalCashflowForm'
+import InvestmentIncomeForm from '../components/InvestmentIncomeForm'
 import {
   deleteCashflow,
   getCashflows,
@@ -60,9 +61,7 @@ function formatCompactMoney(value: number) {
 
 function formatDate(value: string) {
   const date = new Date(`${value}T12:00:00`)
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleDateString('cs-CZ')
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('cs-CZ')
 }
 
 function transactionName(type: string) {
@@ -85,15 +84,12 @@ function transactionBadgeClass(type: string) {
   if (['DIVIDEND', 'COUPON', 'INTEREST'].includes(type)) {
     return 'cashflow-badge cashflow-badge-income'
   }
-
   if (type === 'DEPOSIT' || type === 'CONTRIBUTION') {
     return 'cashflow-badge cashflow-badge-contribution'
   }
-
   if (type === 'WITHDRAWAL') {
     return 'cashflow-badge cashflow-badge-withdrawal'
   }
-
   return 'cashflow-badge'
 }
 
@@ -124,22 +120,26 @@ export default function Cashflow() {
     void load()
   }, [])
 
+  function refresh(messageText: string) {
+    setMessage(messageText)
+    void load()
+  }
+
   async function handleDelete(row: CashflowRow) {
     if (!row.is_external) return
 
     const confirmed = window.confirm(
-      'Opravdu smazat tento externí pohyb? Tím se může změnit XIRR a TWR.',
+      'Externí vklad nebo výběr po zavedení hotovostního účtu nemaž. Pro opravu použij opačný pohyb. Pokračovat v pokusu o smazání?',
     )
-
     if (!confirmed) return
 
     try {
       await deleteCashflow(row.id)
-      setMessage('Externí cashflow bylo smazáno.')
+      setMessage('Cashflow bylo smazáno.')
       await load()
     } catch (error) {
       console.error('Cashflow delete:', error)
-      setMessage('Cashflow se nepodařilo smazat.')
+      setMessage(error instanceof Error ? error.message : 'Cashflow se nepodařilo smazat.')
     }
   }
 
@@ -154,17 +154,12 @@ export default function Cashflow() {
       const value = Number(row.amount_czk)
       if (!Number.isFinite(value)) continue
 
-      if (
-        row.is_external
-        && (row.transaction_type === 'DEPOSIT' || row.transaction_type === 'CONTRIBUTION')
-      ) {
+      if (row.is_external && (row.transaction_type === 'DEPOSIT' || row.transaction_type === 'CONTRIBUTION')) {
         deposits += Math.abs(value)
       }
-
       if (row.is_external && row.transaction_type === 'WITHDRAWAL') {
         withdrawals += Math.abs(value)
       }
-
       if (row.transaction_type === 'DIVIDEND') dividends += value
       if (row.transaction_type === 'COUPON') coupons += value
       if (row.transaction_type === 'INTEREST') interest += value
@@ -190,17 +185,12 @@ export default function Cashflow() {
       if (filterType !== 'ALL') {
         const depositFilter = filterType === 'DEPOSIT'
           && (row.transaction_type === 'DEPOSIT' || row.transaction_type === 'CONTRIBUTION')
-
         if (!depositFilter && row.transaction_type !== filterType) return false
       }
 
       if (!query) return true
 
-      return [
-        row.instruments?.name ?? '',
-        transactionName(row.transaction_type),
-        row.note ?? '',
-      ]
+      return [row.instruments?.name ?? '', transactionName(row.transaction_type), row.note ?? '']
         .join(' ')
         .toLocaleLowerCase('cs')
         .includes(query)
@@ -208,19 +198,11 @@ export default function Cashflow() {
   }, [cashflows, onlyExternal, filterType, search])
 
   if (loading) {
-    return (
-      <div className="page">
-        <div className="loading-box">Načítám cashflow...</div>
-      </div>
-    )
+    return <div className="page"><div className="loading-box">Načítám cashflow...</div></div>
   }
 
   if (errorMessage) {
-    return (
-      <div className="page">
-        <div className="error-box">{errorMessage}</div>
-      </div>
-    )
+    return <div className="page"><div className="error-box">{errorMessage}</div></div>
   }
 
   return (
@@ -229,21 +211,16 @@ export default function Cashflow() {
         <div>
           <h1 className="page-title">Cashflow</h1>
           <p className="page-subtitle">
-            Externí vklady a výběry pro XIRR a TWR, dividendy, kupóny a úroky.
+            Vklady a výběry mění hotovost a vstupují do XIRR/TWR. Dividendy, kupóny a úroky mění hotovost a investiční výsledek.
           </p>
         </div>
-
         <div style={{ color: 'var(--text-muted)', fontSize: '12px', textAlign: 'right', lineHeight: 1.6 }}>
           {cashflows.length.toLocaleString('cs-CZ')} transakcí
         </div>
       </header>
 
-      <ExternalCashflowForm
-        onSaved={() => {
-          setMessage('Externí cashflow bylo uloženo.')
-          void load()
-        }}
-      />
+      <ExternalCashflowForm onSaved={() => refresh('Externí cashflow bylo uloženo a hotovost aktualizována.')} />
+      <InvestmentIncomeForm onSaved={() => refresh('Investiční příjem byl uložen a hotovost aktualizována.')} />
 
       <section className="kpi-grid">
         <MetricCard label="Externí vklady" value={formatCompactMoney(stats.deposits)} description={formatMoney(stats.deposits)} />
@@ -255,49 +232,22 @@ export default function Cashflow() {
         <MetricCard label="Investiční příjmy" value={formatCompactMoney(stats.investmentIncome)} description={formatMoney(stats.investmentIncome)} />
       </section>
 
-      <div
-        style={{
-          marginTop: '14px',
-          marginBottom: '18px',
-          padding: '10px 12px',
-          background: '#fafbfc',
-          border: '1px solid var(--border)',
-          borderRadius: '5px',
-          color: 'var(--text-secondary)',
-          fontSize: '11px',
-          lineHeight: 1.5,
-        }}
-      >
-        Vklad nebo výběr zadávej pouze tehdy, když peníze překročí hranici celého majetku sledovaného ve FIRE WM.
-        Převod mezi brokerem a spořicím účtem, které jsou oba evidované ve FIRE WM, není externí cashflow.
+      <div style={{ marginTop: '14px', marginBottom: '18px', padding: '10px 12px', background: '#fafbfc', border: '1px solid var(--border)', borderRadius: '5px', color: 'var(--text-secondary)', fontSize: '11px', lineHeight: 1.5 }}>
+        Převod mezi dvěma účty, které oba sleduješ ve FIRE WM, není externí cashflow. Chybný vklad nebo výběr neopravuj smazáním, ale opačným opravným pohybem, aby zůstala hotovost a historie konzistentní.
       </div>
 
-      {message && (
-        <div className="cashflow-status" style={{ marginBottom: '12px' }}>
-          {message}
-        </div>
-      )}
+      {message && <div className="cashflow-status" style={{ marginBottom: '12px' }}>{message}</div>}
 
       <section className="panel">
         <div className="panel-header cashflow-table-header">
           <div>
             <h2 className="panel-title">Historie</h2>
-            <div className="panel-subtitle">Všechny peněžní pohyby portfolia</div>
+            <div className="panel-subtitle">Všechny evidované peněžní pohyby portfolia</div>
           </div>
 
           <div className="cashflow-filters">
-            <input
-              className="form-control cashflow-search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Hledat..."
-            />
-
-            <select
-              className="form-control cashflow-filter-select"
-              value={filterType}
-              onChange={(event) => setFilterType(event.target.value as FilterType)}
-            >
+            <input className="form-control cashflow-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Hledat..." />
+            <select className="form-control cashflow-filter-select" value={filterType} onChange={(event) => setFilterType(event.target.value as FilterType)}>
               <option value="ALL">Všechny typy</option>
               <option value="BUY">Nákupy</option>
               <option value="SELL">Prodeje</option>
@@ -307,13 +257,8 @@ export default function Cashflow() {
               <option value="DEPOSIT">Vklady</option>
               <option value="WITHDRAWAL">Výběry</option>
             </select>
-
             <label className="cashflow-external-filter">
-              <input
-                type="checkbox"
-                checked={onlyExternal}
-                onChange={(event) => setOnlyExternal(event.target.checked)}
-              />
+              <input type="checkbox" checked={onlyExternal} onChange={(event) => setOnlyExternal(event.target.checked)} />
               Jen externí
             </label>
           </div>
@@ -333,7 +278,6 @@ export default function Cashflow() {
                   <th style={{ width: '52px' }} />
                 </tr>
               </thead>
-
               <tbody>
                 {visibleCashflows.map((row) => {
                   const value = Number(row.amount_czk)
@@ -347,32 +291,18 @@ export default function Cashflow() {
                   return (
                     <tr key={row.id}>
                       <td className="cell-date">{formatDate(row.transaction_date)}</td>
-                      <td className="cell-text">
-                        <span className={transactionBadgeClass(row.transaction_type)}>
-                          {transactionName(row.transaction_type)}
-                        </span>
-                      </td>
-                      <td className="cell-text">
-                        <span className="instrument-name">{row.instruments?.name ?? '—'}</span>
-                      </td>
+                      <td className="cell-text"><span className={transactionBadgeClass(row.transaction_type)}>{transactionName(row.transaction_type)}</span></td>
+                      <td className="cell-text"><span className="instrument-name">{row.instruments?.name ?? '—'}</span></td>
                       <td className={amountClass}>{formatMoney(value)}</td>
                       <td className="cell-text">
                         {row.is_external
                           ? <span className="cashflow-external-label">Externí</span>
                           : <span className="cell-muted">Interní</span>}
                       </td>
-                      <td className="cell-text">
-                        <span style={{ color: 'var(--text-secondary)' }}>{row.note || '—'}</span>
-                      </td>
+                      <td className="cell-text"><span style={{ color: 'var(--text-secondary)' }}>{row.note || '—'}</span></td>
                       <td className="cell-number">
                         {row.is_external && (
-                          <button
-                            className="cashflow-delete"
-                            onClick={() => void handleDelete(row)}
-                            title="Smazat externí cashflow"
-                          >
-                            ×
-                          </button>
+                          <button className="cashflow-delete" onClick={() => void handleDelete(row)} title="Externí pohyb neopravuj mazáním">×</button>
                         )}
                       </td>
                     </tr>
@@ -382,24 +312,14 @@ export default function Cashflow() {
             </table>
           </div>
         ) : (
-          <div className="empty-box" style={{ margin: '20px' }}>
-            Filtru neodpovídají žádné transakce.
-          </div>
+          <div className="empty-box" style={{ margin: '20px' }}>Filtru neodpovídají žádné transakce.</div>
         )}
       </section>
     </div>
   )
 }
 
-function MetricCard({
-  label,
-  value,
-  description,
-}: {
-  label: string
-  value: string
-  description?: string
-}) {
+function MetricCard({ label, value, description }: { label: string; value: string; description?: string }) {
   return (
     <div className="kpi-card">
       <div className="kpi-label">{label}</div>
