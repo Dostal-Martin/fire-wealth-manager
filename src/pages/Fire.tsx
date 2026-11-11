@@ -18,6 +18,13 @@ import {
 } from 'recharts'
 
 import {
+  calculateAccumulation,
+  calculateRent,
+  formatAge,
+  type RentPoint,
+} from '../domain/fireCalculations'
+
+import {
   getCurrentNetWorth,
   getFireSettings,
   saveFireSettings,
@@ -28,35 +35,18 @@ type FireTab =
   | 'accumulation'
   | 'rent'
 
-type AccumulationPoint = {
-  age: string
-  ageMonths: number
-  capital: number
-  contributions: number
-}
-
-type RentPoint = {
-  age: string
-  ageMonths: number
-  capital: number
-  monthlyWithdrawal: number
-  pension: number
-}
-
 type Tone =
   | 'default'
   | 'positive'
   | 'negative'
 
-const MAX_SIMULATION_MONTHS =
-  100 * 12
-
 function parseNumber(
   value: string
 ) {
-  const normalized = value
-    .replace(/\s/g, '')
-    .replace(',', '.')
+  const normalized =
+    value
+      .replace(/\s/g, '')
+      .replace(',', '.')
 
   const number =
     Number(normalized)
@@ -135,30 +125,6 @@ function formatPercent(
   )} %`
 }
 
-function formatAge(
-  totalMonths: number
-) {
-  const normalized =
-    Math.max(
-      Math.round(totalMonths),
-      0
-    )
-
-  const years =
-    Math.floor(
-      normalized / 12
-    )
-
-  const months =
-    normalized % 12
-
-  if (months === 0) {
-    return `${years} let`
-  }
-
-  return `${years} let ${months} měs.`
-}
-
 function formatDate(
   value: Date
 ) {
@@ -171,399 +137,6 @@ function formatDate(
   )
 }
 
-function annualToMonthlyRate(
-  annualRate: number
-) {
-  if (annualRate <= -1) {
-    return -1
-  }
-
-  return (
-    Math.pow(
-      1 + annualRate,
-      1 / 12
-    ) - 1
-  )
-}
-
-function calculateRealReturn(
-  nominalReturn: number,
-  inflation: number
-) {
-  if (inflation <= -1) {
-    return 0
-  }
-
-  return (
-    (1 + nominalReturn) /
-      (1 + inflation) -
-    1
-  )
-}
-
-function calculateAccumulation(
-  startCapital: number,
-  monthlyContribution: number,
-  targetCapital: number,
-  nominalReturn: number,
-  inflation: number,
-  currentAgeMonths: number
-) {
-  const realReturn =
-    calculateRealReturn(
-      nominalReturn,
-      inflation
-    )
-
-  const monthlyRate =
-    annualToMonthlyRate(
-      realReturn
-    )
-
-  let capital =
-    Math.max(
-      startCapital,
-      0
-    )
-
-  let totalContributions =
-    Math.max(
-      startCapital,
-      0
-    )
-
-  let month = 0
-
-  const points:
-    AccumulationPoint[] = [
-      {
-        age:
-          formatAge(
-            currentAgeMonths
-          ),
-
-        ageMonths:
-          currentAgeMonths,
-
-        capital,
-
-        contributions:
-          totalContributions,
-      },
-    ]
-
-  while (
-    capital < targetCapital &&
-    month <
-      MAX_SIMULATION_MONTHS
-  ) {
-    capital =
-      capital *
-        (1 + monthlyRate) +
-      monthlyContribution
-
-    totalContributions =
-      totalContributions +
-      monthlyContribution
-
-    month =
-      month + 1
-
-    if (
-      month % 12 === 0 ||
-      capital >= targetCapital
-    ) {
-      points.push({
-        age:
-          formatAge(
-            currentAgeMonths +
-              month
-          ),
-
-        ageMonths:
-          currentAgeMonths +
-          month,
-
-        capital,
-
-        contributions:
-          totalContributions,
-      })
-    }
-  }
-
-  const estimatedDate =
-    new Date()
-
-  estimatedDate.setMonth(
-    estimatedDate.getMonth() +
-      month
-  )
-
-  const investmentGain =
-    Math.max(
-      capital -
-        totalContributions,
-      0
-    )
-
-  const gainShare =
-    capital > 0
-      ? (
-          investmentGain /
-          capital
-        ) * 100
-      : 0
-
-  return {
-    realReturn,
-
-    months:
-      month,
-
-    targetReached:
-      capital >= targetCapital,
-
-    finalCapital:
-      capital,
-
-    totalContributions,
-
-    investmentGain,
-
-    gainShare,
-
-    estimatedDate,
-
-    fireAgeMonths:
-      currentAgeMonths +
-      month,
-
-    points,
-  }
-}
-
-function calculateRent(
-  startCapital: number,
-  startAgeMonths: number,
-  monthlyRent: number,
-  nominalReturn: number,
-  inflation: number,
-  years: number,
-  pensionAge: number,
-  pensionAmount: number,
-  indexation: boolean,
-  dynamic: boolean
-) {
-  const monthlyReturn =
-    annualToMonthlyRate(
-      nominalReturn
-    )
-
-  const monthlyInflation =
-    annualToMonthlyRate(
-      inflation
-    )
-
-  const totalMonths =
-    Math.max(
-      Math.round(
-        years * 12
-      ),
-      1
-    )
-
-  let capital =
-    Math.max(
-      startCapital,
-      0
-    )
-
-  let indexedRent =
-    Math.max(
-      monthlyRent,
-      0
-    )
-
-  let indexedPension =
-    Math.max(
-      pensionAmount,
-      0
-    )
-
-  let depletionMonth:
-    number | null = null
-
-  let totalWithdrawn = 0
-  let totalPension = 0
-
-  const initialSWR =
-    startCapital > 0
-      ? (
-          monthlyRent *
-          12 /
-          startCapital
-        ) * 100
-      : 0
-
-  const points:
-    RentPoint[] = [
-      {
-        age:
-          formatAge(
-            startAgeMonths
-          ),
-
-        ageMonths:
-          startAgeMonths,
-
-        capital,
-
-        monthlyWithdrawal:
-          indexedRent,
-
-        pension:
-          0,
-      },
-    ]
-
-  for (
-    let month = 1;
-    month <= totalMonths;
-    month++
-  ) {
-    const currentAgeMonths =
-      startAgeMonths +
-      month
-
-    const currentAge =
-      currentAgeMonths /
-      12
-
-    if (
-      indexation &&
-      month > 1
-    ) {
-      indexedRent =
-        indexedRent *
-        (1 + monthlyInflation)
-
-      indexedPension =
-        indexedPension *
-        (1 + monthlyInflation)
-    }
-
-    const pension =
-      currentAge >= pensionAge
-        ? indexedPension
-        : 0
-
-    let requiredWithdrawal =
-      Math.max(
-        indexedRent -
-          pension,
-        0
-      )
-
-    if (dynamic) {
-      const annualRate =
-        initialSWR / 100
-
-      const dynamicRent =
-        capital *
-        annualRate /
-        12
-
-      requiredWithdrawal =
-        Math.max(
-          dynamicRent -
-            pension,
-          0
-        )
-    }
-
-    capital =
-      capital *
-      (1 + monthlyReturn)
-
-    capital =
-      capital -
-      requiredWithdrawal
-
-    totalWithdrawn =
-      totalWithdrawn +
-      requiredWithdrawal
-
-    totalPension =
-      totalPension +
-      pension
-
-    if (capital <= 0) {
-      capital = 0
-
-      depletionMonth =
-        month
-    }
-
-    if (
-      month % 12 === 0 ||
-      month === totalMonths ||
-      depletionMonth !== null
-    ) {
-      points.push({
-        age:
-          formatAge(
-            currentAgeMonths
-          ),
-
-        ageMonths:
-          currentAgeMonths,
-
-        capital,
-
-        monthlyWithdrawal:
-          requiredWithdrawal,
-
-        pension,
-      })
-    }
-
-    if (
-      depletionMonth !== null
-    ) {
-      break
-    }
-  }
-
-  return {
-    initialSWR,
-
-    sustainable:
-      depletionMonth === null,
-
-    depletionMonth,
-
-    endingCapital:
-      capital,
-
-    endingAgeMonths:
-      depletionMonth !== null
-        ? startAgeMonths +
-          depletionMonth
-        : startAgeMonths +
-          totalMonths,
-
-    totalWithdrawn,
-
-    totalPension,
-
-    finalIndexedRent:
-      indexedRent,
-
-    points,
-  }
-}
-
 export default function Fire() {
   const [
     activeTab,
@@ -573,119 +146,149 @@ export default function Fire() {
       'accumulation'
     )
 
-  const [loading, setLoading] =
+  const [
+    loading,
+    setLoading,
+  ] =
     useState(true)
 
-  const [saving, setSaving] =
+  const [
+    saving,
+    setSaving,
+  ] =
     useState(false)
 
-  const [message, setMessage] =
+  const [
+    message,
+    setMessage,
+  ] =
     useState('')
 
   const [
     snapshotDate,
     setSnapshotDate,
-  ] = useState('')
+  ] =
+    useState('')
 
   const [
     currentNetWorth,
     setCurrentNetWorth,
-  ] = useState(0)
+  ] =
+    useState(0)
 
   const [
     currentAgeYears,
     setCurrentAgeYears,
-  ] = useState('35')
+  ] =
+    useState('35')
 
   const [
     currentAgeMonths,
     setCurrentAgeMonths,
-  ] = useState('0')
+  ] =
+    useState('0')
 
   const [
     annualExpenses,
     setAnnualExpenses,
-  ] = useState('1320000')
+  ] =
+    useState('1320000')
 
   const [
     withdrawalRate,
     setWithdrawalRate,
-  ] = useState('4')
+  ] =
+    useState('4')
 
   const [
     fireTarget,
     setFireTarget,
-  ] = useState('25000000')
+  ] =
+    useState('25000000')
 
   const [
     monthlyContribution,
     setMonthlyContribution,
-  ] = useState('80000')
+  ] =
+    useState('80000')
 
   const [
     expectedReturn,
     setExpectedReturn,
-  ] = useState('7')
+  ] =
+    useState('7')
 
   const [
     inflationRate,
     setInflationRate,
-  ] = useState('2.5')
+  ] =
+    useState('2.5')
 
   const [
     rentStartAgeYears,
     setRentStartAgeYears,
-  ] = useState('45')
+  ] =
+    useState('45')
 
   const [
     rentStartAgeMonths,
     setRentStartAgeMonths,
-  ] = useState('0')
+  ] =
+    useState('0')
 
   const [
     rentStartCapital,
     setRentStartCapital,
-  ] = useState('25000000')
+  ] =
+    useState('25000000')
 
   const [
     monthlyRent,
     setMonthlyRent,
-  ] = useState('100000')
+  ] =
+    useState('100000')
 
   const [
     rentReturnRate,
     setRentReturnRate,
-  ] = useState('5')
+  ] =
+    useState('5')
 
   const [
     rentInflationRate,
     setRentInflationRate,
-  ] = useState('2.5')
+  ] =
+    useState('2.5')
 
   const [
     rentYears,
     setRentYears,
-  ] = useState('50')
+  ] =
+    useState('50')
 
   const [
     statePensionAge,
     setStatePensionAge,
-  ] = useState('65')
+  ] =
+    useState('65')
 
   const [
     statePensionAmount,
     setStatePensionAmount,
-  ] = useState('20000')
+  ] =
+    useState('20000')
 
   const [
     rentIndexation,
     setRentIndexation,
-  ] = useState(true)
+  ] =
+    useState(true)
 
   const [
     rentDynamic,
     setRentDynamic,
-  ] = useState(false)
+  ] =
+    useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -698,10 +301,11 @@ export default function Fire() {
         const [
           settings,
           netWorth,
-        ] = await Promise.all([
-          getFireSettings(),
-          getCurrentNetWorth(),
-        ])
+        ] =
+          await Promise.all([
+            getFireSettings(),
+            getCurrentNetWorth(),
+          ])
 
         if (cancelled) {
           return
@@ -1045,17 +649,28 @@ export default function Fire() {
   const accumulation =
     useMemo(
       () =>
-        calculateAccumulation(
-          currentNetWorth,
-          values
-            .monthlyContribution,
-          values.fireTarget,
-          values
-            .expectedReturn,
-          values
-            .inflationRate,
-          currentAgeTotalMonths
-        ),
+        calculateAccumulation({
+          startCapital:
+            currentNetWorth,
+
+          monthlyContribution:
+            values
+              .monthlyContribution,
+
+          targetCapital:
+            values.fireTarget,
+
+          nominalReturn:
+            values
+              .expectedReturn,
+
+          inflation:
+            values
+              .inflationRate,
+
+          currentAgeMonths:
+            currentAgeTotalMonths,
+        }),
       [
         currentNetWorth,
         values
@@ -1072,58 +687,59 @@ export default function Fire() {
   const rentProjection =
     useMemo(
       () =>
-        calculateRent(
-          values
-            .rentStartCapital,
+        calculateRent({
+          startCapital:
+            values
+              .rentStartCapital,
 
-          rentStartAgeTotalMonths,
+          startAgeMonths:
+            rentStartAgeTotalMonths,
 
-          values
-            .monthlyRent,
+          monthlyRent:
+            values
+              .monthlyRent,
 
-          values
-            .rentReturnRate,
+          nominalReturn:
+            values
+              .rentReturnRate,
 
-          values
-            .rentInflationRate,
+          inflation:
+            values
+              .rentInflationRate,
 
-          values.rentYears,
+          years:
+            values.rentYears,
 
-          values
-            .statePensionAge,
+          pensionAge:
+            values
+              .statePensionAge,
 
-          values
-            .statePensionAmount,
+          pensionAmount:
+            values
+              .statePensionAmount,
 
-          rentIndexation,
+          indexation:
+            rentIndexation,
 
-          rentDynamic
-        ),
+          dynamic:
+            rentDynamic,
+        }),
       [
         values
           .rentStartCapital,
-
         rentStartAgeTotalMonths,
-
         values
           .monthlyRent,
-
         values
           .rentReturnRate,
-
         values
           .rentInflationRate,
-
         values.rentYears,
-
         values
           .statePensionAge,
-
         values
           .statePensionAmount,
-
         rentIndexation,
-
         rentDynamic,
       ]
     )
@@ -1547,7 +1163,7 @@ function AccumulationView({
           )}
           description={
             snapshotDate
-              ? `Snapshot ${snapshotDate}`
+              ? `Live stav ${snapshotDate}`
               : formatMoney(
                   currentNetWorth
                 )
@@ -1828,8 +1444,7 @@ function AccumulationView({
             >
               <LineChart
                 data={
-                  accumulation
-                    .points
+                  accumulation.points
                 }
                 margin={{
                   top: 10,
@@ -1901,8 +1516,7 @@ function AccumulationView({
 
                 <ReferenceLine
                   y={
-                    values
-                      .fireTarget
+                    values.fireTarget
                   }
                   stroke="#a64b4b"
                   strokeDasharray="5 5"
@@ -1992,69 +1606,47 @@ function RentView({
     statePensionAmount: number
   }
 
-  rentStartAgeYears:
-    string
-
+  rentStartAgeYears: string
   setRentStartAgeYears:
     (value: string) => void
 
-  rentStartAgeMonths:
-    string
-
+  rentStartAgeMonths: string
   setRentStartAgeMonths:
     (value: string) => void
 
-  rentStartCapital:
-    string
-
+  rentStartCapital: string
   setRentStartCapital:
     (value: string) => void
 
-  monthlyRent:
-    string
-
+  monthlyRent: string
   setMonthlyRent:
     (value: string) => void
 
-  rentReturnRate:
-    string
-
+  rentReturnRate: string
   setRentReturnRate:
     (value: string) => void
 
-  rentInflationRate:
-    string
-
+  rentInflationRate: string
   setRentInflationRate:
     (value: string) => void
 
-  rentYears:
-    string
-
+  rentYears: string
   setRentYears:
     (value: string) => void
 
-  statePensionAge:
-    string
-
+  statePensionAge: string
   setStatePensionAge:
     (value: string) => void
 
-  statePensionAmount:
-    string
-
+  statePensionAmount: string
   setStatePensionAmount:
     (value: string) => void
 
-  rentIndexation:
-    boolean
-
+  rentIndexation: boolean
   setRentIndexation:
     (value: boolean) => void
 
-  rentDynamic:
-    boolean
-
+  rentDynamic: boolean
   setRentDynamic:
     (value: boolean) => void
 }) {

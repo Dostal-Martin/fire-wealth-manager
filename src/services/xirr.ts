@@ -1,115 +1,172 @@
-import { supabase } from '../lib/supabase'
+import {
+  supabase,
+} from '../lib/supabase'
 
-type Cashflow = {
-  date: string
-  amount: number
+import {
+  calculateXirr,
+  type XirrCashflow,
+} from '../domain/xirrCalculations'
+
+import {
+  getCurrentNetWorth,
+  getLocalDateString,
+} from './netWorth'
+
+type ExternalCashflowRow = {
+  transaction_date: string
+  amount_czk:
+    | number
+    | string
 }
 
-function xnpv(
-  rate: number,
-  cashflows: Cashflow[]
-) {
-  const firstDate = new Date(
-    cashflows[0].date
-  )
-
-  return cashflows.reduce(
-    (total, cashflow) => {
-      const currentDate = new Date(
-        cashflow.date
-      )
-
-      const days =
-        (currentDate.getTime() -
-          firstDate.getTime()) /
-        (1000 * 60 * 60 * 24)
-
-      return (
-        total +
-        cashflow.amount /
-          Math.pow(
-            1 + rate,
-            days / 365
-          )
-      )
-    },
-    0
-  )
-}
-
-function calculateXirr(
-  cashflows: Cashflow[]
-) {
-  let rate = 0.1
-
-  for (let i = 0; i < 100; i++) {
-    const npv = xnpv(rate, cashflows)
-
-    const npv2 = xnpv(
-      rate + 0.0001,
-      cashflows
-    )
-
-    const derivative =
-      (npv2 - npv) / 0.0001
-
-    const newRate =
-      rate - npv / derivative
-
-    if (
-      Math.abs(newRate - rate) <
-      0.000001
-    ) {
-      return newRate
-    }
-
-    rate = newRate
-  }
-
-  return rate
-}
-
-export async function getXirr() {
-  const { data: cashflows } =
+/**
+ * XIRR měří výnos kapitálu investora.
+ *
+ * Do výpočtu proto vstupují pouze cashflow,
+ * která překročila hranici sledovaného
+ * majetku:
+ *
+ * DEPOSIT / externí vklad
+ * WITHDRAWAL / externí výběr
+ *
+ * Interní operace jako BUY, SELL,
+ * dividenda, kupón, úrok, poplatek
+ * nebo daň nejsou vstupem XIRR.
+ *
+ * Databázová konvence FIRE WM:
+ *
+ * + amount_czk = peníze vstupují
+ *                do portfolia
+ *
+ * - amount_czk = peníze opouštějí
+ *                portfolio
+ *
+ * Pro XIRR se na cashflow díváme
+ * z perspektivy investora, takže
+ * znaménko obracíme:
+ *
+ * DEPOSIT    -> záporný tok investora
+ * WITHDRAWAL -> kladný tok investora
+ *
+ * Aktuální hodnota portfolia je
+ * závěrečný kladný tok.
+ */
+export async function getXirr():
+  Promise<number | null> {
+  const {
+    data,
+    error,
+  } =
     await supabase
       .from('cashflows')
-      .select(
-        'transaction_date,amount_czk'
+      .select(`
+        transaction_date,
+        amount_czk
+      `)
+      .eq(
+        'is_external',
+        true
+      )
+      .order(
+        'transaction_date',
+        {
+          ascending: true,
+        }
       )
 
-  const { data: positions } =
-    await supabase
-      .from('positions')
-      .select('current_value')
+  if (error) {
+    throw error
+  }
 
-  const flows: Cashflow[] =
-    (cashflows ?? []).map(
-      (item) => ({
-        date:
-          item.transaction_date,
-        amount:
-          Number(item.amount_czk),
-      })
-    )
+  const externalCashflows =
+    (
+      data ?? []
+    ) as ExternalCashflowRow[]
 
-  const portfolioValue =
-    (positions ?? []).reduce(
-      (sum, p) =>
-        sum +
-        Number(p.current_value),
-      0
-    )
+  /*
+   * Bez historicky evidovaného externího
+   * cashflow XIRR nemá ekonomický význam.
+   *
+   * BUY/SELL zde úmyslně nepoužíváme
+   * jako náhradu externích vkladů.
+   */
+  if (
+    externalCashflows.length ===
+    0
+  ) {
+    return null
+  }
+
+  const flows:
+    XirrCashflow[] =
+      externalCashflows
+        .map(
+          (item) => {
+            const amount =
+              Number(
+                item.amount_czk
+              )
+
+            return {
+              date:
+                item.transaction_date,
+
+              amount:
+                -amount,
+            }
+          }
+        )
+        .filter(
+          (flow) =>
+            Boolean(
+              flow.date
+            ) &&
+            Number.isFinite(
+              flow.amount
+            ) &&
+            flow.amount !==
+              0
+        )
+
+  if (
+    flows.length === 0
+  ) {
+    return null
+  }
+
+  const current =
+    await getCurrentNetWorth()
+
+  if (
+    !Number.isFinite(
+      current.netWorth
+    ) ||
+    current.netWorth <= 0
+  ) {
+    return null
+  }
 
   flows.push({
-    date: new Date()
-      .toISOString()
-      .substring(0, 10),
+    date:
+      getLocalDateString(),
 
-    amount: portfolioValue,
+    amount:
+      current.netWorth,
   })
 
   const result =
-    calculateXirr(flows)
+    calculateXirr(
+      flows
+    )
+
+  if (
+    result === null ||
+    !Number.isFinite(
+      result
+    )
+  ) {
+    return null
+  }
 
   return result * 100
 }

@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase'
 
 import {
   getCurrentNetWorth as getLiveNetWorth,
+  getLocalDateString,
 } from './netWorth'
 
 const PORTFOLIO_ID =
@@ -57,35 +58,39 @@ function toNumber(
 
 export async function getFireSettings():
   Promise<FireSettings> {
-  const { data, error } = await supabase
-    .from('fire_settings')
-    .select(`
-      portfolio_id,
-      annual_expenses,
-      withdrawal_rate,
-      target_fire_number,
-      current_age_years,
-      current_age_months,
-      monthly_contribution,
-      expected_return,
-      inflation_rate,
-      rent_start_age_years,
-      rent_start_age_months,
-      rent_start_capital,
-      monthly_rent,
-      rent_return_rate,
-      rent_inflation_rate,
-      rent_years,
-      state_pension_age,
-      state_pension_amount,
-      rent_indexation,
-      rent_dynamic
-    `)
-    .eq(
-      'portfolio_id',
-      PORTFOLIO_ID
-    )
-    .single()
+  const {
+    data,
+    error,
+  } =
+    await supabase
+      .from('fire_settings')
+      .select(`
+        portfolio_id,
+        annual_expenses,
+        withdrawal_rate,
+        target_fire_number,
+        current_age_years,
+        current_age_months,
+        monthly_contribution,
+        expected_return,
+        inflation_rate,
+        rent_start_age_years,
+        rent_start_age_months,
+        rent_start_capital,
+        monthly_rent,
+        rent_return_rate,
+        rent_inflation_rate,
+        rent_years,
+        state_pension_age,
+        state_pension_amount,
+        rent_indexation,
+        rent_dynamic
+      `)
+      .eq(
+        'portfolio_id',
+        PORTFOLIO_ID
+      )
+      .single()
 
   if (error) {
     throw error
@@ -212,95 +217,90 @@ export async function getFireSettings():
 export async function saveFireSettings(
   settings: FireSettingsInput
 ) {
-  const { error } = await supabase
-    .from('fire_settings')
-    .update({
-      annual_expenses:
-        settings.annual_expenses,
+  const {
+    error,
+  } =
+    await supabase
+      .from('fire_settings')
+      .update({
+        annual_expenses:
+          settings.annual_expenses,
 
-      withdrawal_rate:
-        settings.withdrawal_rate,
+        withdrawal_rate:
+          settings.withdrawal_rate,
 
-      target_fire_number:
-        settings.target_fire_number,
+        target_fire_number:
+          settings.target_fire_number,
 
-      current_age_years:
-        settings.current_age_years,
+        current_age_years:
+          settings.current_age_years,
 
-      current_age_months:
-        settings.current_age_months,
+        current_age_months:
+          settings.current_age_months,
 
-      monthly_contribution:
-        settings.monthly_contribution,
+        monthly_contribution:
+          settings.monthly_contribution,
 
-      expected_return:
-        settings.expected_return,
+        expected_return:
+          settings.expected_return,
 
-      inflation_rate:
-        settings.inflation_rate,
+        inflation_rate:
+          settings.inflation_rate,
 
-      rent_start_age_years:
-        settings.rent_start_age_years,
+        rent_start_age_years:
+          settings.rent_start_age_years,
 
-      rent_start_age_months:
-        settings.rent_start_age_months,
+        rent_start_age_months:
+          settings.rent_start_age_months,
 
-      rent_start_capital:
-        settings.rent_start_capital,
+        rent_start_capital:
+          settings.rent_start_capital,
 
-      monthly_rent:
-        settings.monthly_rent,
+        monthly_rent:
+          settings.monthly_rent,
 
-      rent_return_rate:
-        settings.rent_return_rate,
+        rent_return_rate:
+          settings.rent_return_rate,
 
-      rent_inflation_rate:
-        settings.rent_inflation_rate,
+        rent_inflation_rate:
+          settings.rent_inflation_rate,
 
-      rent_years:
-        Math.round(
-          settings.rent_years
-        ),
+        rent_years:
+          Math.round(
+            settings.rent_years
+          ),
 
-      state_pension_age:
-        Math.round(
-          settings.state_pension_age
-        ),
+        state_pension_age:
+          Math.round(
+            settings.state_pension_age
+          ),
 
-      state_pension_amount:
-        settings.state_pension_amount,
+        state_pension_amount:
+          settings.state_pension_amount,
 
-      rent_indexation:
-        settings.rent_indexation,
+        rent_indexation:
+          settings.rent_indexation,
 
-      rent_dynamic:
-        settings.rent_dynamic,
-    })
-    .eq(
-      'portfolio_id',
-      PORTFOLIO_ID
-    )
+        rent_dynamic:
+          settings.rent_dynamic,
+      })
+      .eq(
+        'portfolio_id',
+        PORTFOLIO_ID
+      )
 
   if (error) {
     throw error
   }
 }
 
-/*
- * Zachováváme stejné jméno funkce,
- * aby Fire.tsx nebylo potřeba měnit.
- *
- * Hodnota je ale nově LIVE z positions.
- */
 export async function getCurrentNetWorth() {
   const live =
     await getLiveNetWorth()
 
   return {
     date:
-      new Date()
-        .toISOString()
-        .slice(0, 10),
+      getLocalDateString(),
 
     value:
       live.netWorth,

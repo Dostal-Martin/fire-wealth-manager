@@ -12,7 +12,13 @@ import {
 } from '../lib/supabase'
 
 import {
+  saveTodaySnapshot,
+} from '../services/netWorth'
+
+import {
+  getStoredMarketFx,
   updateMarketPrices,
+  type MarketFx,
   type PriceUpdateResult,
 } from '../services/priceUpdater'
 
@@ -24,6 +30,7 @@ import {
   saveManualUnitPrice,
   type ManualInstrument,
   type ManualValuationOverview,
+  type ValuationFreshness,
 } from '../services/manualValuation'
 
 import {
@@ -45,18 +52,33 @@ type MarketRow = {
 }
 
 function getToday() {
-  return new Date()
-    .toISOString()
-    .slice(0, 10)
+  const date =
+    new Date()
+
+  const year =
+    date.getFullYear()
+
+  const month =
+    String(
+      date.getMonth() + 1
+    ).padStart(2, '0')
+
+  const day =
+    String(
+      date.getDate()
+    ).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
 }
 
 function parseNumericInput(
   value: string
 ) {
-  const normalized = value
-    .trim()
-    .replace(/\s/g, '')
-    .replace(',', '.')
+  const normalized =
+    value
+      .trim()
+      .replace(/\s/g, '')
+      .replace(',', '.')
 
   const result =
     Number(normalized)
@@ -201,9 +223,9 @@ function sourceBadgeClass(
 ) {
   if (
     source ===
-    'YAHOO' ||
+      'YAHOO' ||
     source ===
-    'YAHOO_BACKFILL'
+      'YAHOO_BACKFILL'
   ) {
     return 'badge badge-gray'
   }
@@ -218,6 +240,120 @@ function sourceBadgeClass(
   return 'badge badge-gray'
 }
 
+function getFreshnessText(
+  row: ManualValuationOverview
+) {
+  if (
+    row.valuationFreshness ===
+    'missing'
+  ) {
+    return 'Chybí datum ocenění'
+  }
+
+  if (
+    row.valuationFreshness ===
+    'warning'
+  ) {
+    return 'Starší ocenění'
+  }
+
+  if (
+    row.valuationFreshness ===
+    'stale'
+  ) {
+    return 'Neaktuální ocenění'
+  }
+
+  if (
+    row.valuationAgeDays ===
+    0
+  ) {
+    return 'Dnes'
+  }
+
+  if (
+    row.valuationAgeDays ===
+    1
+  ) {
+    return '1 den'
+  }
+
+  if (
+    row.valuationAgeDays !==
+    null
+  ) {
+    return `${row.valuationAgeDays.toLocaleString(
+      'cs-CZ'
+    )} dní`
+  }
+
+  return '—'
+}
+
+function getFreshnessDetail(
+  row: ManualValuationOverview
+) {
+  if (
+    row.valuationAgeDays ===
+    null
+  ) {
+    return null
+  }
+
+  if (
+    row.valuationFreshness ===
+    'fresh'
+  ) {
+    return null
+  }
+
+  return `${row.valuationAgeDays.toLocaleString(
+    'cs-CZ'
+  )} dní`
+}
+
+function getFreshnessStyle(
+  freshness:
+    ValuationFreshness
+) {
+  if (
+    freshness ===
+    'warning'
+  ) {
+    return {
+      color: '#84611f',
+      background:
+        '#fff7df',
+      border:
+        '1px solid #ead9a4',
+    }
+  }
+
+  if (
+    freshness ===
+      'stale' ||
+    freshness ===
+      'missing'
+  ) {
+    return {
+      color: '#8b4444',
+      background:
+        'var(--danger-soft)',
+      border:
+        '1px solid #ead8d8',
+    }
+  }
+
+  return {
+    color:
+      'var(--text-secondary)',
+    background:
+      '#f7f8fa',
+    border:
+      '1px solid var(--border)',
+  }
+}
+
 export default function MarketData({
   onPricesUpdated,
 }: Props) {
@@ -229,38 +365,52 @@ export default function MarketData({
   const [
     automaticRows,
     setAutomaticRows,
-  ] = useState<MarketRow[]>([])
+  ] =
+    useState<MarketRow[]>([])
+
+  const [
+    marketFx,
+    setMarketFx,
+  ] =
+    useState<MarketFx | null>(
+      null
+    )
 
   const [
     manualInstruments,
     setManualInstruments,
-  ] = useState<
-    ManualInstrument[]
-  >([])
+  ] =
+    useState<
+      ManualInstrument[]
+    >([])
 
   const [
     manualOverview,
     setManualOverview,
-  ] = useState<
-    ManualValuationOverview[]
-  >([])
+  ] =
+    useState<
+      ManualValuationOverview[]
+    >([])
 
   const [
     selectedManualId,
     setSelectedManualId,
-  ] = useState('')
+  ] =
+    useState('')
 
   const [
     valuationDate,
     setValuationDate,
-  ] = useState(
-    getToday()
-  )
+  ] =
+    useState(
+      getToday()
+    )
 
   const [
     manualValue,
     setManualValue,
-  ] = useState('')
+  ] =
+    useState('')
 
   const [
     selectedFile,
@@ -281,32 +431,38 @@ export default function MarketData({
   const [
     loadingPage,
     setLoadingPage,
-  ] = useState(true)
+  ] =
+    useState(true)
 
   const [
     loadingPrices,
     setLoadingPrices,
-  ] = useState(false)
+  ] =
+    useState(false)
 
   const [
     loadingManual,
     setLoadingManual,
-  ] = useState(false)
+  ] =
+    useState(false)
 
   const [
     automaticMessage,
     setAutomaticMessage,
-  ] = useState('')
+  ] =
+    useState('')
 
   const [
     manualMessage,
     setManualMessage,
-  ] = useState('')
+  ] =
+    useState('')
 
   const [
     pageError,
     setPageError,
-  ] = useState('')
+  ] =
+    useState('')
 
   const selectedManual =
     useMemo(
@@ -385,6 +541,17 @@ export default function MarketData({
             'total_value'
         ).length
 
+      const attentionCount =
+        manualOverview.filter(
+          (row) =>
+            row.valuationFreshness ===
+              'warning' ||
+            row.valuationFreshness ===
+              'stale' ||
+            row.valuationFreshness ===
+              'missing'
+        ).length
+
       return {
         total:
           manualOverview.length,
@@ -394,6 +561,8 @@ export default function MarketData({
         unitPriceCount,
 
         totalValueCount,
+
+        attentionCount,
       }
     }, [manualOverview])
 
@@ -402,24 +571,25 @@ export default function MarketData({
       const {
         data: instruments,
         error: instrumentsError,
-      } = await supabase
-        .from('instruments')
-        .select(`
-          id,
-          name,
-          ticker,
-          currency
-        `)
-        .eq(
-          'pricing_source',
-          'yahoo'
-        )
-        .not(
-          'ticker',
-          'is',
-          null
-        )
-        .order('ticker')
+      } =
+        await supabase
+          .from('instruments')
+          .select(`
+            id,
+            name,
+            ticker,
+            currency
+          `)
+          .eq(
+            'pricing_source',
+            'yahoo'
+          )
+          .not(
+            'ticker',
+            'is',
+            null
+          )
+          .order('ticker')
 
       if (instrumentsError) {
         throw instrumentsError
@@ -452,26 +622,27 @@ export default function MarketData({
         const {
           data: prices,
           error: pricesError,
-        } = await supabase
-          .from(
-            'price_history'
-          )
-          .select(`
-            instrument_id,
-            close_price,
-            price_date,
-            source
-          `)
-          .in(
-            'instrument_id',
-            instrumentIds
-          )
-          .order(
-            'price_date',
-            {
-              ascending: false,
-            }
-          )
+        } =
+          await supabase
+            .from(
+              'price_history'
+            )
+            .select(`
+              instrument_id,
+              close_price,
+              price_date,
+              source
+            `)
+            .in(
+              'instrument_id',
+              instrumentIds
+            )
+            .order(
+              'price_date',
+              {
+                ascending: false,
+              }
+            )
 
         if (pricesError) {
           throw pricesError
@@ -561,16 +732,26 @@ export default function MarketData({
       )
     }, [])
 
+  const loadStoredFx =
+    useCallback(async () => {
+      const fx =
+        await getStoredMarketFx()
+
+      setMarketFx(
+        fx
+      )
+    }, [])
+
   const loadManualData =
     useCallback(async () => {
       const [
         instruments,
         overview,
-      ] = await Promise.all([
-        getManualInstruments(),
-
-        getManualValuationOverview(),
-      ])
+      ] =
+        await Promise.all([
+          getManualInstruments(),
+          getManualValuationOverview(),
+        ])
 
       setManualInstruments(
         instruments
@@ -609,10 +790,12 @@ export default function MarketData({
     useCallback(async () => {
       await Promise.all([
         loadAutomaticPrices(),
+        loadStoredFx(),
         loadManualData(),
       ])
     }, [
       loadAutomaticPrices,
+      loadStoredFx,
       loadManualData,
     ])
 
@@ -664,6 +847,14 @@ export default function MarketData({
       setUpdateResult(
         result
       )
+
+      if (
+        result.fx
+      ) {
+        setMarketFx(
+          result.fx
+        )
+      }
 
       await loadAutomaticPrices()
 
@@ -719,9 +910,19 @@ export default function MarketData({
       return
     }
 
+    if (!valuationDate) {
+      setManualMessage(
+        'Vyber datum ocenění.'
+      )
+
+      return
+    }
+
     try {
       setLoadingManual(true)
       setManualMessage('')
+
+      let successMessage = ''
 
       if (
         selectedManual
@@ -730,12 +931,12 @@ export default function MarketData({
       ) {
         await saveManualTotalValue(
           selectedManual.id,
-          numericValue
+          numericValue,
+          valuationDate
         )
 
-        setManualMessage(
+        successMessage =
           'Celková hodnota pozice byla uložena.'
-        )
       } else {
         await saveManualUnitPrice(
           selectedManual.id,
@@ -743,14 +944,22 @@ export default function MarketData({
           numericValue
         )
 
-        setManualMessage(
+        successMessage =
           'Cena byla uložena a pozice přeceněna.'
-        )
       }
+
+      const snapshot =
+        await saveTodaySnapshot()
 
       setManualValue('')
 
       await loadManualData()
+
+      setManualMessage(
+        `${successMessage} Dnešní snapshot byl aktualizován na ${formatMoney(
+          snapshot.netWorth
+        )}.`
+      )
 
       onPricesUpdated?.()
     } catch (error) {
@@ -816,16 +1025,8 @@ export default function MarketData({
           rows
         )
 
-      setManualMessage(
-        `Importováno ${result.importedCount.toLocaleString(
-          'cs-CZ'
-        )} cen. Poslední ocenění ${formatNumber(
-          result.latestPrice,
-          6
-        )} k ${formatDate(
-          result.latestDate
-        )}.`
-      )
+      const snapshot =
+        await saveTodaySnapshot()
 
       setSelectedFile(null)
 
@@ -837,6 +1038,19 @@ export default function MarketData({
       }
 
       await loadManualData()
+
+      setManualMessage(
+        `Importováno ${result.importedCount.toLocaleString(
+          'cs-CZ'
+        )} cen. Poslední ocenění ${formatNumber(
+          result.latestPrice,
+          6
+        )} k ${formatDate(
+          result.latestDate
+        )}. Dnešní snapshot byl aktualizován na ${formatMoney(
+          snapshot.netWorth
+        )}.`
+      )
 
       onPricesUpdated?.()
     } catch (error) {
@@ -854,6 +1068,10 @@ export default function MarketData({
       setLoadingManual(false)
     }
   }
+
+  const displayedFx =
+    updateResult?.fx ??
+    marketFx
 
   if (loadingPage) {
     return (
@@ -922,7 +1140,14 @@ export default function MarketData({
           value={manualStats.total.toLocaleString(
             'cs-CZ'
           )}
-          description={`${manualStats.unitPriceCount} jednotkových · ${manualStats.totalValueCount} celkových`}
+          description={
+            manualStats.attentionCount >
+            0
+              ? `${manualStats.attentionCount.toLocaleString(
+                  'cs-CZ'
+                )} vyžaduje pozornost`
+              : `${manualStats.unitPriceCount} jednotkových · ${manualStats.totalValueCount} celkových`
+          }
         />
 
         <MetricCard
@@ -960,7 +1185,7 @@ export default function MarketData({
             </div>
           </div>
 
-          {updateResult?.fx && (
+          {displayedFx && (
             <div
               style={{
                 display: 'flex',
@@ -973,16 +1198,14 @@ export default function MarketData({
               <FxValue
                 label="USD/CZK"
                 value={
-                  updateResult.fx
-                    .USDCZK
+                  displayedFx.USDCZK
                 }
               />
 
               <FxValue
                 label="EUR/CZK"
                 value={
-                  updateResult.fx
-                    .EURCZK
+                  displayedFx.EURCZK
                 }
               />
             </div>
@@ -1049,7 +1272,6 @@ export default function MarketData({
                         style={{
                           fontWeight:
                             600,
-
                           fontVariantNumeric:
                             'tabular-nums',
                         }}
@@ -1112,10 +1334,8 @@ export default function MarketData({
                     style={{
                       padding:
                         '28px',
-
                       color:
                         'var(--text-secondary)',
-
                       textAlign:
                         'center',
                     }}
@@ -1181,6 +1401,10 @@ export default function MarketData({
                   Datum
                 </th>
 
+                <th className="cell-text">
+                  Aktuálnost
+                </th>
+
                 <th className="cell-number">
                   Hodnota pozice
                 </th>
@@ -1207,10 +1431,8 @@ export default function MarketData({
                           style={{
                             marginTop:
                               '2px',
-
                             color:
                               'var(--text-muted)',
-
                             fontSize:
                               '11px',
                           }}
@@ -1256,6 +1478,12 @@ export default function MarketData({
                       )}
                     </td>
 
+                    <td className="cell-text">
+                      <FreshnessBadge
+                        row={row}
+                      />
+                    </td>
+
                     <td className="cell-number">
                       <strong
                         style={{
@@ -1285,14 +1513,12 @@ export default function MarketData({
                 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     style={{
                       padding:
                         '28px',
-
                       color:
                         'var(--text-secondary)',
-
                       textAlign:
                         'center',
                     }}
@@ -1313,17 +1539,15 @@ export default function MarketData({
                   style={{
                     background:
                       '#fafbfc',
-
                     borderTop:
                       '1px solid var(--border)',
                   }}
                 >
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     style={{
                       padding:
                         '12px 14px',
-
                       fontWeight:
                         600,
                     }}
@@ -1375,12 +1599,9 @@ export default function MarketData({
             <div
               style={{
                 display: 'grid',
-
                 gridTemplateColumns:
                   'repeat(auto-fit, minmax(220px, 1fr))',
-
                 gap: '16px',
-
                 alignItems: 'end',
               }}
             >
@@ -1412,6 +1633,10 @@ export default function MarketData({
                       null
                     )
 
+                    setValuationDate(
+                      getToday()
+                    )
+
                     if (
                       fileInputRef.current
                     ) {
@@ -1441,55 +1666,53 @@ export default function MarketData({
                 </select>
               </Field>
 
+              <Field
+                label="Datum ocenění"
+              >
+                <input
+                  className="form-control"
+                  type="date"
+                  value={
+                    valuationDate
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    setValuationDate(
+                      event.target
+                        .value
+                    )
+                  }
+                />
+              </Field>
+
               {selectedManual
                 ?.valuation_mode ===
               'unit_price' ? (
-                <>
-                  <Field
-                    label="Datum ocenění"
-                  >
-                    <input
-                      className="form-control"
-                      type="date"
-                      value={
-                        valuationDate
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setValuationDate(
-                          event.target
-                            .value
-                        )
-                      }
-                    />
-                  </Field>
-
-                  <Field
-                    label={`Cena za jednotku ${
-                      selectedManual
-                        .currency ??
-                      ''
-                    }`}
-                  >
-                    <input
-                      className="form-control"
-                      value={
-                        manualValue
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        setManualValue(
-                          event.target
-                            .value
-                        )
-                      }
-                      placeholder="157,734"
-                      inputMode="decimal"
-                    />
-                  </Field>
-                </>
+                <Field
+                  label={`Cena za jednotku ${
+                    selectedManual
+                      .currency ??
+                    ''
+                  }`}
+                >
+                  <input
+                    className="form-control"
+                    value={
+                      manualValue
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setManualValue(
+                        event.target
+                          .value
+                      )
+                    }
+                    placeholder="157,734"
+                    inputMode="decimal"
+                  />
+                </Field>
               ) : (
                 <Field
                   label="Celková hodnota pozice v CZK"
@@ -1569,10 +1792,8 @@ export default function MarketData({
                 style={{
                   marginTop:
                     '26px',
-
                   paddingTop:
                     '22px',
-
                   borderTop:
                     '1px solid var(--border)',
                 }}
@@ -1580,12 +1801,9 @@ export default function MarketData({
                 <div
                   style={{
                     display: 'grid',
-
                     gridTemplateColumns:
                       'minmax(240px, 1fr) auto',
-
                     gap: '20px',
-
                     alignItems:
                       'end',
                   }}
@@ -1595,13 +1813,10 @@ export default function MarketData({
                       style={{
                         marginBottom:
                           '6px',
-
                         color:
                           'var(--text)',
-
                         fontSize:
                           '13px',
-
                         fontWeight:
                           600,
                       }}
@@ -1614,13 +1829,10 @@ export default function MarketData({
                       style={{
                         marginBottom:
                           '13px',
-
                         color:
                           'var(--text-secondary)',
-
                         fontSize:
                           '12px',
-
                         lineHeight:
                           1.5,
                       }}
@@ -1657,10 +1869,8 @@ export default function MarketData({
                         style={{
                           marginTop:
                             '7px',
-
                           color:
                             'var(--text-muted)',
-
                           fontSize:
                             '11px',
                         }}
@@ -1742,6 +1952,74 @@ function Field({
   )
 }
 
+function FreshnessBadge({
+  row,
+}: {
+  row: ManualValuationOverview
+}) {
+  const style =
+    getFreshnessStyle(
+      row.valuationFreshness
+    )
+
+  const detail =
+    getFreshnessDetail(
+      row
+    )
+
+  return (
+    <div>
+      <span
+        style={{
+          display:
+            'inline-flex',
+          alignItems:
+            'center',
+          minHeight:
+            '22px',
+          padding:
+            '3px 8px',
+          borderRadius:
+            '999px',
+          color:
+            style.color,
+          background:
+            style.background,
+          border:
+            style.border,
+          fontSize:
+            '11px',
+          fontWeight:
+            600,
+          lineHeight:
+            1.2,
+          whiteSpace:
+            'nowrap',
+        }}
+      >
+        {getFreshnessText(
+          row
+        )}
+      </span>
+
+      {detail && (
+        <div
+          style={{
+            marginTop:
+              '3px',
+            color:
+              'var(--text-muted)',
+            fontSize:
+              '10px',
+          }}
+        >
+          {detail}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function FxValue({
   label,
   value,
@@ -1759,13 +2037,10 @@ function FxValue({
         style={{
           color:
             'var(--text-muted)',
-
           fontSize:
             '10px',
-
           fontWeight:
             600,
-
           letterSpacing:
             '0.03em',
         }}
@@ -1777,16 +2052,12 @@ function FxValue({
         style={{
           marginTop:
             '3px',
-
           color:
             'var(--text)',
-
           fontSize:
             '13px',
-
           fontWeight:
             600,
-
           fontVariantNumeric:
             'tabular-nums',
         }}
@@ -1812,33 +2083,26 @@ function StatusMessage({
       style={{
         margin:
           '0 20px 18px',
-
         padding:
           '10px 12px',
-
         color:
           error
             ? '#8b4444'
             : 'var(--text-secondary)',
-
         background:
           error
             ? 'var(--danger-soft)'
             : '#f7f8fa',
-
         border:
           `1px solid ${
             error
               ? '#ead8d8'
               : 'var(--border)'
           }`,
-
         borderRadius:
           '5px',
-
         fontSize:
           '12px',
-
         lineHeight:
           1.45,
       }}

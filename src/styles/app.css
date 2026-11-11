@@ -4245,3 +4245,60 @@ th.cell-number {
     display: none;
   }
 }
+.valuation-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.valuation-status-fresh {
+  color: #416653;
+  background: #edf5f0;
+  border: 1px solid #d5e7dc;
+}
+
+.valuation-status-warning {
+  color: #84611f;
+  background: #fff7df;
+  border: 1px solid #ead9a4;
+}
+
+.valuation-status-critical {
+  color: #8b4444;
+  background: var(--danger-soft);
+  border: 1px solid #ead8d8;
+}
+.transactions-table-scroll,
+.transactions-detail-scroll {
+  scrollbar-width: auto;
+  scrollbar-color: #98a2b3 #eef0f3;
+}
+
+.transactions-table-scroll::-webkit-scrollbar,
+.transactions-detail-scroll::-webkit-scrollbar {
+  height: 12px;
+}
+
+.transactions-table-scroll::-webkit-scrollbar-track,
+.transactions-detail-scroll::-webkit-scrollbar-track {
+  background: #eef0f3;
+  border-radius: 999px;
+}
+
+.transactions-table-scroll::-webkit-scrollbar-thumb,
+.transactions-detail-scroll::-webkit-scrollbar-thumb {
+  background: #98a2b3;
+  border: 2px solid #eef0f3;
+  border-radius: 999px;
+}
+
+.transactions-table-scroll::-webkit-scrollbar-thumb:hover,
+.transactions-detail-scroll::-webkit-scrollbar-thumb:hover {
+  background: #667085;
+}

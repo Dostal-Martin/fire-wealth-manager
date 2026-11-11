@@ -1,35 +1,54 @@
-import { supabase } from '../lib/supabase'
+import {
+  supabase,
+} from '../lib/supabase'
+
+import {
+  createBackupStructure,
+  getBackupCounts,
+  type BackupRow,
+} from '../domain/backupStructure'
+
+import {
+  getLocalDateString,
+} from './netWorth'
 
 type BackupOptions = {
   includePriceHistory: boolean
 }
 
 async function loadAllRows(
-  table: string,
-) {
+  table: string
+):
+  Promise<BackupRow[]> {
   const pageSize = 1000
   let from = 0
 
-  const result: any[] = []
+  const result:
+    BackupRow[] = []
 
   while (true) {
     const {
       data,
       error,
-    } = await supabase
-      .from(table)
-      .select('*')
-      .range(
-        from,
-        from + pageSize - 1
-      )
+    } =
+      await supabase
+        .from(table)
+        .select('*')
+        .range(
+          from,
+          from +
+            pageSize -
+            1
+        )
 
     if (error) {
       throw error
     }
 
     const page =
-      data ?? []
+      (
+        data ?? []
+      ) as BackupRow[]
 
     result.push(
       ...page
@@ -42,8 +61,8 @@ async function loadAllRows(
       break
     }
 
-    from =
-      from + pageSize
+    from +=
+      pageSize
   }
 
   return result
@@ -55,43 +74,49 @@ export async function createBackup(
   const [
     instruments,
     positions,
+    transactions,
     cashflows,
     portfolioSnapshots,
     fireSettings,
     fxHistory,
     syncStatus,
-  ] = await Promise.all([
-    loadAllRows(
-      'instruments'
-    ),
+  ] =
+    await Promise.all([
+      loadAllRows(
+        'instruments'
+      ),
 
-    loadAllRows(
-      'positions'
-    ),
+      loadAllRows(
+        'positions'
+      ),
 
-    loadAllRows(
-      'cashflows'
-    ),
+      loadAllRows(
+        'transactions'
+      ),
 
-    loadAllRows(
-      'portfolio_snapshots'
-    ),
+      loadAllRows(
+        'cashflows'
+      ),
 
-    loadAllRows(
-      'fire_settings'
-    ),
+      loadAllRows(
+        'portfolio_snapshots'
+      ),
 
-    loadAllRows(
-      'fx_history'
-    ),
+      loadAllRows(
+        'fire_settings'
+      ),
 
-    loadAllRows(
-      'app_sync_status'
-    ),
-  ])
+      loadAllRows(
+        'fx_history'
+      ),
+
+      loadAllRows(
+        'app_sync_status'
+      ),
+    ])
 
   let priceHistory:
-    any[] | undefined
+    BackupRow[] | undefined
 
   if (
     options
@@ -103,56 +128,35 @@ export async function createBackup(
       )
   }
 
-  return {
-    format:
-      'fire-wm-backup',
-
-    version:
-      '1.0',
-
-    exportedAt:
-      new Date()
-        .toISOString(),
-
-    data: {
+  return createBackupStructure(
+    {
       instruments,
 
       positions,
 
+      transactions,
+
       cashflows,
 
-      portfolio_snapshots:
-        portfolioSnapshots,
+      portfolioSnapshots,
 
-      fire_settings:
-        fireSettings,
+      fireSettings,
 
-      fx_history:
-        fxHistory,
+      fxHistory,
 
-      app_sync_status:
-        syncStatus,
+      syncStatus,
 
-      ...(options
-        .includePriceHistory
-        ? {
-            price_history:
-              priceHistory ??
-              [],
-          }
-        : {}),
+      priceHistory,
     },
-  }
+
+    options
+      .includePriceHistory
+  )
 }
 
 function backupFileName() {
-  const today =
-    new Date()
-      .toISOString()
-      .slice(0, 10)
-
   return (
-    `fire-wm-backup-${today}.json`
+    `fire-wm-backup-${getLocalDateString()}.json`
   )
 }
 
@@ -190,10 +194,14 @@ export async function downloadBackup(
       'a'
     )
 
-  link.href = url
+  link.href =
+    url
+
+  const fileName =
+    backupFileName()
 
   link.download =
-    backupFileName()
+    fileName
 
   document.body.appendChild(
     link
@@ -207,9 +215,13 @@ export async function downloadBackup(
     url
   )
 
+  const counts =
+    getBackupCounts(
+      backup
+    )
+
   return {
-    fileName:
-      backupFileName(),
+    fileName,
 
     sizeBytes:
       blob.size,
@@ -218,38 +230,6 @@ export async function downloadBackup(
       options
         .includePriceHistory,
 
-    counts: {
-      instruments:
-        backup.data
-          .instruments.length,
-
-      positions:
-        backup.data
-          .positions.length,
-
-      cashflows:
-        backup.data
-          .cashflows.length,
-
-      snapshots:
-        backup.data
-          .portfolio_snapshots
-          .length,
-
-      fxRates:
-        backup.data
-          .fx_history.length,
-
-      priceHistory:
-        options
-          .includePriceHistory
-          ? (
-              backup.data as any
-            )
-              .price_history
-              ?.length ??
-            0
-          : 0,
-    },
+    counts,
   }
 }

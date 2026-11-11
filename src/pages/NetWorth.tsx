@@ -15,6 +15,11 @@ import {
 } from 'recharts'
 
 import {
+  getCurrentNetWorth,
+  getLocalDateString,
+} from '../services/netWorth'
+
+import {
   getNetWorthHistory,
 } from '../services/netWorthHistory'
 
@@ -31,6 +36,44 @@ type NetWorthPoint = {
 
 const DAY_MS =
   24 * 60 * 60 * 1000
+
+/**
+ * Spojí historické snapshoty s aktuální live
+ * hodnotou portfolia.
+ *
+ * Pokud dnešní snapshot existuje, je pouze
+ * pro účely UI nahrazen live hodnotou.
+ *
+ * Pokud dnešní snapshot neexistuje, přidá se
+ * virtuální dnešní bod.
+ *
+ * Do databáze tato funkce nic nezapisuje.
+ */
+function mergeLiveNetWorth(
+  history: NetWorthPoint[],
+  liveAmount: number,
+  today: string
+): NetWorthPoint[] {
+  const historicalPoints =
+    history.filter(
+      (point) =>
+        point.date !== today
+    )
+
+  return [
+    ...historicalPoints,
+
+    {
+      date: today,
+      amount: liveAmount,
+    },
+  ].sort(
+    (a, b) =>
+      a.date.localeCompare(
+        b.date
+      )
+  )
+}
 
 function formatMoney(
   value: number
@@ -205,6 +248,12 @@ export default function NetWorth() {
     >([])
 
   const [
+    snapshotCount,
+    setSnapshotCount,
+  ] =
+    useState(0)
+
+  const [
     selectedRange,
     setSelectedRange,
   ] =
@@ -232,8 +281,14 @@ export default function NetWorth() {
         setLoading(true)
         setErrorMessage('')
 
-        const data =
-          await getNetWorthHistory()
+        const [
+          data,
+          current,
+        ] =
+          await Promise.all([
+            getNetWorthHistory(),
+            getCurrentNetWorth(),
+          ])
 
         if (cancelled) {
           return
@@ -253,8 +308,12 @@ export default function NetWorth() {
               })
             )
             .filter(
-              (row) =>
-                row.date &&
+              (
+                row
+              ): row is NetWorthPoint =>
+                Boolean(
+                  row.date
+                ) &&
                 Number.isFinite(
                   row.amount
                 )
@@ -266,8 +325,32 @@ export default function NetWorth() {
                 )
             )
 
+        if (
+          !Number.isFinite(
+            current.netWorth
+          )
+        ) {
+          throw new Error(
+            'Aktuální čisté jmění není platné číslo.'
+          )
+        }
+
+        const today =
+          getLocalDateString()
+
+        const historyWithLivePoint =
+          mergeLiveNetWorth(
+            normalized,
+            current.netWorth,
+            today
+          )
+
+        setSnapshotCount(
+          normalized.length
+        )
+
         setHistory(
-          normalized
+          historyWithLivePoint
         )
       } catch (error) {
         console.error(
@@ -357,17 +440,11 @@ export default function NetWorth() {
 
       return {
         first,
-
         latest,
-
         ath,
-
         growth,
-
         growthPercent,
-
         cagr,
-
         drawdown,
       }
     }, [history])
@@ -490,19 +567,20 @@ export default function NetWorth() {
 
           <p className="page-subtitle">
             Historický vývoj čistého
-            jmění podle uložených
-            snapshotů.
+            jmění. Poslední dnešní bod
+            používá aktuální hodnotu
+            portfolia.
           </p>
         </div>
 
         <div className="networth-header-meta">
-          {history.length.toLocaleString(
+          {snapshotCount.toLocaleString(
             'cs-CZ'
           )}
           {' '}
-          snapshotů
+          uložených snapshotů
           <br />
-          poslední{' '}
+          aktuální k{' '}
           {formatDate(
             metrics.latest.date
           )}
@@ -619,7 +697,12 @@ export default function NetWorth() {
           value={history.length.toLocaleString(
             'cs-CZ'
           )}
-          description="Historické snapshoty"
+          description={
+            history.length >
+            snapshotCount
+              ? 'Snapshoty + live bod'
+              : 'Včetně dnešní live hodnoty'
+          }
         />
       </section>
 
@@ -631,7 +714,8 @@ export default function NetWorth() {
             </h2>
 
             <div className="panel-subtitle">
-              Historická hodnota v CZK
+              Historické snapshoty a
+              dnešní live hodnota v CZK
             </div>
           </div>
 
@@ -792,12 +876,16 @@ export default function NetWorth() {
           </ResponsiveContainer>
 
           <div className="networth-chart-note">
-            Graf zobrazuje čisté
-            jmění, nikoliv čistou
-            investiční výkonnost.
-            Změny mohou zahrnovat nové
-            vklady, výběry a změny
-            hodnoty investic.
+            Historické body vycházejí
+            z uložených snapshotů.
+            Dnešní poslední bod používá
+            aktuální hodnotu pozic.
+            Graf zobrazuje čisté jmění,
+            nikoliv čistou investiční
+            výkonnost. Změny mohou
+            zahrnovat nové vklady,
+            výběry a změny hodnoty
+            investic.
           </div>
         </div>
       </section>

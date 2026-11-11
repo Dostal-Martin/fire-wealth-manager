@@ -7,6 +7,12 @@ import {
 const MARKET_SYNC_KEY =
   'market_prices'
 
+export type MarketFx = {
+  date: string
+  USDCZK: number
+  EURCZK: number
+}
+
 export type UpdatedPrice = {
   name: string
   ticker: string
@@ -25,11 +31,7 @@ export type PriceUpdateError = {
 export type PriceUpdateResult = {
   ok: boolean
 
-  fx?: {
-    date: string
-    USDCZK: number
-    EURCZK: number
-  }
+  fx?: MarketFx
 
   processed: number
   updatedCount: number
@@ -61,10 +63,32 @@ export type PriceUpdateStatus = {
   errorCount: number
 }
 
+export type MarketSyncState = {
+  status: PriceUpdateStatus
+
+  fx:
+    | MarketFx
+    | null
+}
+
 function getToday() {
-  return new Date()
-    .toISOString()
-    .slice(0, 10)
+  const date =
+    new Date()
+
+  const year =
+    date.getFullYear()
+
+  const month =
+    String(
+      date.getMonth() + 1
+    ).padStart(2, '0')
+
+  const day =
+    String(
+      date.getDate()
+    ).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
 }
 
 function normalizeNumber(
@@ -78,17 +102,77 @@ function normalizeNumber(
     : 0
 }
 
-export async function getPriceUpdateStatus():
-  Promise<PriceUpdateStatus> {
-  const { data, error } =
+function normalizeFx(
+  value: unknown
+):
+  | MarketFx
+  | null {
+  if (
+    !value ||
+    typeof value !==
+      'object'
+  ) {
+    return null
+  }
+
+  const candidate =
+    value as Record<
+      string,
+      unknown
+    >
+
+  const date =
+    typeof candidate.date ===
+    'string'
+      ? candidate.date
+      : ''
+
+  const USDCZK =
+    Number(
+      candidate.USDCZK
+    )
+
+  const EURCZK =
+    Number(
+      candidate.EURCZK
+    )
+
+  if (
+    !date ||
+    !Number.isFinite(
+      USDCZK
+    ) ||
+    !Number.isFinite(
+      EURCZK
+    )
+  ) {
+    return null
+  }
+
+  return {
+    date,
+    USDCZK,
+    EURCZK,
+  }
+}
+
+export async function getMarketSyncState():
+  Promise<MarketSyncState> {
+  const {
+    data,
+    error,
+  } =
     await supabase
-      .from('app_sync_status')
+      .from(
+        'app_sync_status'
+      )
       .select(`
         last_success_date,
         last_success_at,
         processed,
         updated_count,
-        error_count
+        error_count,
+        details
       `)
       .eq(
         'sync_key',
@@ -102,45 +186,95 @@ export async function getPriceUpdateStatus():
 
   if (!data) {
     return {
-      lastSuccessDate:
+      status: {
+        lastSuccessDate:
+          null,
+
+        lastSuccessAt:
+          null,
+
+        processed:
+          0,
+
+        updatedCount:
+          0,
+
+        errorCount:
+          0,
+      },
+
+      fx:
         null,
-
-      lastSuccessAt:
-        null,
-
-      processed:
-        0,
-
-      updatedCount:
-        0,
-
-      errorCount:
-        0,
     }
   }
 
-  return {
-    lastSuccessDate:
-      data.last_success_date,
+  let fx:
+    | MarketFx
+    | null =
+      null
 
-    lastSuccessAt:
-      data.last_success_at,
+  if (
+    data.details &&
+    typeof data.details ===
+      'object' &&
+    !Array.isArray(
+      data.details
+    )
+  ) {
+    const details =
+      data.details as Record<
+        string,
+        unknown
+      >
 
-    processed:
-      normalizeNumber(
-        data.processed
-      ),
-
-    updatedCount:
-      normalizeNumber(
-        data.updated_count
-      ),
-
-    errorCount:
-      normalizeNumber(
-        data.error_count
-      ),
+    fx =
+      normalizeFx(
+        details.fx
+      )
   }
+
+  return {
+    status: {
+      lastSuccessDate:
+        data.last_success_date,
+
+      lastSuccessAt:
+        data.last_success_at,
+
+      processed:
+        normalizeNumber(
+          data.processed
+        ),
+
+      updatedCount:
+        normalizeNumber(
+          data.updated_count
+        ),
+
+      errorCount:
+        normalizeNumber(
+          data.error_count
+        ),
+    },
+
+    fx,
+  }
+}
+
+export async function getPriceUpdateStatus():
+  Promise<PriceUpdateStatus> {
+  const state =
+    await getMarketSyncState()
+
+  return state.status
+}
+
+export async function getStoredMarketFx():
+  Promise<MarketFx | null> {
+  const state =
+    await getMarketSyncState()
+
+  return state.fx
 }
 
 export async function pricesUpdatedToday() {
@@ -163,9 +297,13 @@ async function savePriceUpdateStatus(
   const today =
     getToday()
 
-  const { error } =
+  const {
+    error,
+  } =
     await supabase
-      .from('app_sync_status')
+      .from(
+        'app_sync_status'
+      )
       .upsert(
         {
           sync_key:
@@ -262,14 +400,6 @@ export async function updateMarketPrices():
     )
   }
 
-  /*
-   * Snapshot vytváříme, pokud Edge Function
-   * úspěšně přecenila alespoň jeden instrument.
-   *
-   * Upsert v saveTodaySnapshot zajistí,
-   * že je v databázi pouze jeden snapshot
-   * za portfolio a den.
-   */
   if (
     result.updatedCount > 0
   ) {
@@ -280,15 +410,6 @@ export async function updateMarketPrices():
       snapshot
   }
 
-  /*
-   * Synchronizaci považujeme za provedenou,
-   * pokud Edge Function doběhla a alespoň
-   * jeden instrument aktualizovala.
-   *
-   * Dílčí chyby se ukládají do error_count,
-   * ale aplikace nebude update během stejného
-   * dne automaticky opakovat při každém otevření.
-   */
   if (
     result.updatedCount > 0
   ) {

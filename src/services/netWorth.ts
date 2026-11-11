@@ -1,4 +1,10 @@
-import { supabase } from '../lib/supabase'
+import {
+  supabase,
+} from '../lib/supabase'
+
+import {
+  calculateNetWorth,
+} from '../domain/netWorthCalculations'
 
 const PORTFOLIO_ID =
   '29cc8d4e-7548-45d0-9a11-ae4d53b55d62'
@@ -10,63 +16,85 @@ export type CurrentNetWorth = {
   positionCount: number
 }
 
+export type LatestSnapshot = {
+  id: string
+  date: string
+  value: number
+}
+
+export function getLocalDateString(
+  date = new Date()
+) {
+  const year =
+    date.getFullYear()
+
+  const month =
+    String(
+      date.getMonth() + 1
+    ).padStart(2, '0')
+
+  const day =
+    String(
+      date.getDate()
+    ).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
 export async function getCurrentNetWorth():
   Promise<CurrentNetWorth> {
-  const { data, error } =
+  const {
+    data,
+    error,
+  } =
     await supabase
       .from('positions')
       .select(`
         id,
         current_value
       `)
+      .eq(
+        'portfolio_id',
+        PORTFOLIO_ID
+      )
 
   if (error) {
     throw error
   }
 
-  let assets = 0
-  let liabilities = 0
-
-  for (
-    const position of
-    data ?? []
-  ) {
-    const value =
-      Number(
-        position.current_value
+  const calculation =
+    calculateNetWorth(
+      (
+        data ?? []
+      ).map(
+        (position) => ({
+          current_value:
+            position.current_value,
+        })
       )
-
-    if (
-      !Number.isFinite(value)
-    ) {
-      continue
-    }
-
-    if (value >= 0) {
-      assets =
-        assets + value
-    } else {
-      liabilities =
-        liabilities + value
-    }
-  }
+    )
 
   return {
-    assets,
+    assets:
+      calculation.assets,
 
-    liabilities,
+    liabilities:
+      calculation.liabilities,
 
     netWorth:
-      assets +
-      liabilities,
+      calculation.netWorth,
 
     positionCount:
-      data?.length ?? 0,
+      calculation.positionCount,
   }
 }
 
-export async function getLatestSnapshot() {
-  const { data, error } =
+export async function getLatestSnapshot():
+  Promise<LatestSnapshot | null> {
+  const {
+    data,
+    error,
+  } =
     await supabase
       .from(
         'portfolio_snapshots'
@@ -116,9 +144,7 @@ export async function saveTodaySnapshot() {
     await getCurrentNetWorth()
 
   const today =
-    new Date()
-      .toISOString()
-      .slice(0, 10)
+    getLocalDateString()
 
   if (
     !Number.isFinite(
@@ -130,7 +156,9 @@ export async function saveTodaySnapshot() {
     )
   }
 
-  const { error } =
+  const {
+    error,
+  } =
     await supabase
       .from(
         'portfolio_snapshots'
@@ -173,11 +201,12 @@ export async function saveTodaySnapshot() {
 
 export async function snapshotExistsToday() {
   const today =
-    new Date()
-      .toISOString()
-      .slice(0, 10)
+    getLocalDateString()
 
-  const { data, error } =
+  const {
+    data,
+    error,
+  } =
     await supabase
       .from(
         'portfolio_snapshots'

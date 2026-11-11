@@ -25,6 +25,7 @@ import Cashflow from './pages/Cashflow'
 import Income from './pages/Income'
 import PositionManager from './pages/PositionManager'
 import InstrumentManager from './pages/InstrumentManager'
+import Transactions from './pages/Transactions'
 import Admin from './pages/Admin'
 
 import {
@@ -45,6 +46,7 @@ type Page =
   | 'income'
   | 'positions'
   | 'instruments'
+  | 'transactions'
   | 'admin'
 
 function formatUpdateDateTime(
@@ -127,14 +129,6 @@ function App() {
   ] =
     useState(false)
 
-  /*
-   * AUTH
-   *
-   * 1. Při startu zjistíme existující session.
-   * 2. Sledujeme přihlášení / odhlášení.
-   * 3. Supabase si session standardně
-   *    obnovuje přes svůj klientský SDK.
-   */
   useEffect(() => {
     let mounted = true
 
@@ -223,15 +217,6 @@ function App() {
     }
   }, [])
 
-  /*
-   * MARKET DATA
-   *
-   * Spouštíme až po přihlášení.
-   *
-   * Denní stav se kontroluje
-   * v Supabase app_sync_status,
-   * ne v localStorage.
-   */
   useEffect(() => {
     if (!session) {
       return
@@ -399,13 +384,6 @@ function App() {
     }
   }
 
-  /*
-   * AUTH LOADING
-   *
-   * Během kontroly session ještě
-   * nezobrazujeme Login, aby při
-   * reloadu obrazovka neproblikla.
-   */
   if (authLoading) {
     return (
       <div className="login-page">
@@ -424,9 +402,6 @@ function App() {
     )
   }
 
-  /*
-   * AUTH GATE
-   */
   if (!session) {
     return <Login />
   }
@@ -597,6 +572,19 @@ function App() {
             />
 
             <NavigationItem
+              title="Transakce"
+              active={
+                page ===
+                'transactions'
+              }
+              onClick={() =>
+                setPage(
+                  'transactions'
+                )
+              }
+            />
+
+            <NavigationItem
               title="Cashflow"
               active={
                 page ===
@@ -733,6 +721,11 @@ function App() {
                 priceRefreshVersion
               }
             />
+          )}
+
+          {page ===
+            'transactions' && (
+            <Transactions />
           )}
 
           {page ===

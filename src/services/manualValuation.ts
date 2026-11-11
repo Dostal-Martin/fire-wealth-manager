@@ -4,6 +4,12 @@ export type ValuationMode =
   | 'unit_price'
   | 'total_value'
 
+export type ValuationFreshness =
+  | 'fresh'
+  | 'warning'
+  | 'stale'
+  | 'missing'
+
 export type ManualInstrument = {
   id: string
   name: string
@@ -30,29 +36,164 @@ export type ManualValuationOverview = {
   latestPrice: number | null
   latestDate: string | null
   priceSource: string | null
+
+  valuationAgeDays: number | null
+  valuationFreshness: ValuationFreshness
+  valuationFreshnessLabel: string | null
+}
+
+const DAY_MS =
+  24 * 60 * 60 * 1000
+
+function getLocalDateString(
+  date = new Date()
+) {
+  const year =
+    date.getFullYear()
+
+  const month =
+    String(
+      date.getMonth() + 1
+    ).padStart(2, '0')
+
+  const day =
+    String(
+      date.getDate()
+    ).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function parseDateAtUtcNoon(
+  value: string
+) {
+  return new Date(
+    `${value}T12:00:00Z`
+  )
+}
+
+export function getValuationAgeDays(
+  valuationDate: string | null,
+  today = getLocalDateString()
+): number | null {
+  if (!valuationDate) {
+    return null
+  }
+
+  const valuation =
+    parseDateAtUtcNoon(
+      valuationDate
+    )
+
+  const current =
+    parseDateAtUtcNoon(
+      today
+    )
+
+  if (
+    Number.isNaN(
+      valuation.getTime()
+    ) ||
+    Number.isNaN(
+      current.getTime()
+    )
+  ) {
+    return null
+  }
+
+  const difference =
+    Math.floor(
+      (
+        current.getTime() -
+        valuation.getTime()
+      ) /
+      DAY_MS
+    )
+
+  return Math.max(
+    0,
+    difference
+  )
+}
+
+export function getValuationFreshness(
+  valuationDate: string | null,
+  today?: string
+): {
+  ageDays: number | null
+  freshness: ValuationFreshness
+  label: string | null
+} {
+  const ageDays =
+    getValuationAgeDays(
+      valuationDate,
+      today
+    )
+
+  if (
+    valuationDate === null ||
+    ageDays === null
+  ) {
+    return {
+      ageDays: null,
+      freshness: 'missing',
+      label:
+        'Chybí datum ocenění',
+    }
+  }
+
+  if (ageDays <= 35) {
+    return {
+      ageDays,
+      freshness: 'fresh',
+      label: null,
+    }
+  }
+
+  if (ageDays <= 60) {
+    return {
+      ageDays,
+      freshness: 'warning',
+      label:
+        'Starší ocenění',
+    }
+  }
+
+  return {
+    ageDays,
+    freshness: 'stale',
+    label:
+      'Neaktuální ocenění',
+  }
 }
 
 export async function getManualInstruments() {
-  const { data, error } = await supabase
-    .from('instruments')
-    .select(`
-      id,
-      name,
-      ticker,
-      currency,
-      valuation_mode
-    `)
-    .eq(
-      'pricing_source',
-      'manual'
-    )
-    .order('name')
+  const {
+    data,
+    error,
+  } =
+    await supabase
+      .from('instruments')
+      .select(`
+        id,
+        name,
+        ticker,
+        currency,
+        valuation_mode
+      `)
+      .eq(
+        'pricing_source',
+        'manual'
+      )
+      .order('name')
 
   if (error) {
     throw error
   }
 
-  return (data ?? []).map(
+  return (
+    data ?? []
+  ).map(
     (instrument) => ({
       id:
         instrument.id,
@@ -79,31 +220,34 @@ export async function getManualValuationOverview() {
   const {
     data: instruments,
     error,
-  } = await supabase
-    .from('instruments')
-    .select(`
-      id,
-      name,
-      ticker,
-      currency,
-      valuation_mode,
-      positions (
-        quantity,
-        current_value
+  } =
+    await supabase
+      .from('instruments')
+      .select(`
+        id,
+        name,
+        ticker,
+        currency,
+        valuation_mode,
+        positions (
+          quantity,
+          current_value,
+          valuation_date
+        )
+      `)
+      .eq(
+        'pricing_source',
+        'manual'
       )
-    `)
-    .eq(
-      'pricing_source',
-      'manual'
-    )
-    .order('name')
+      .order('name')
 
   if (error) {
     throw error
   }
 
   const result:
-    ManualValuationOverview[] = []
+    ManualValuationOverview[] =
+      []
 
   for (
     const instrument of
@@ -112,24 +256,25 @@ export async function getManualValuationOverview() {
     const {
       data: prices,
       error: priceError,
-    } = await supabase
-      .from('price_history')
-      .select(`
-        price_date,
-        close_price,
-        source
-      `)
-      .eq(
-        'instrument_id',
-        instrument.id
-      )
-      .order(
-        'price_date',
-        {
-          ascending: false,
-        }
-      )
-      .limit(1)
+    } =
+      await supabase
+        .from('price_history')
+        .select(`
+          price_date,
+          close_price,
+          source
+        `)
+        .eq(
+          'instrument_id',
+          instrument.id
+        )
+        .order(
+          'price_date',
+          {
+            ascending: false,
+          }
+        )
+        .limit(1)
 
     if (priceError) {
       throw priceError
@@ -142,6 +287,13 @@ export async function getManualValuationOverview() {
     const positions =
       instrument.positions ??
       []
+
+    const valuationMode:
+      ValuationMode =
+        instrument.valuation_mode ===
+        'total_value'
+          ? 'total_value'
+          : 'unit_price'
 
     const quantity =
       positions.reduce(
@@ -165,6 +317,38 @@ export async function getManualValuationOverview() {
         0
       )
 
+    const positionDates =
+      positions
+        .map(
+          (position) =>
+            position.valuation_date
+        )
+        .filter(
+          (
+            date
+          ): date is string =>
+            Boolean(date)
+        )
+        .sort()
+
+    const positionValuationDate =
+      positionDates.length > 0
+        ? positionDates[0]
+        : null
+
+    const latestDate =
+      valuationMode ===
+      'unit_price'
+        ? latestPrice
+            ?.price_date ??
+          positionValuationDate
+        : positionValuationDate
+
+    const freshness =
+      getValuationFreshness(
+        latestDate
+      )
+
     result.push({
       id:
         instrument.id,
@@ -178,11 +362,7 @@ export async function getManualValuationOverview() {
       currency:
         instrument.currency,
 
-      valuationMode:
-        instrument.valuation_mode ===
-        'total_value'
-          ? 'total_value'
-          : 'unit_price',
+      valuationMode,
 
       quantity,
 
@@ -195,15 +375,21 @@ export async function getManualValuationOverview() {
             )
           : null,
 
-      latestDate:
-        latestPrice
-          ?.price_date ??
-        null,
+      latestDate,
 
       priceSource:
         latestPrice
           ?.source ??
         null,
+
+      valuationAgeDays:
+        freshness.ageDays,
+
+      valuationFreshness:
+        freshness.freshness,
+
+      valuationFreshnessLabel:
+        freshness.label,
     })
   }
 
@@ -215,6 +401,12 @@ export async function saveManualUnitPrice(
   date: string,
   price: number
 ) {
+  if (!date) {
+    throw new Error(
+      'Datum ocenění je povinné.'
+    )
+  }
+
   if (
     !Number.isFinite(price) ||
     price <= 0
@@ -226,27 +418,28 @@ export async function saveManualUnitPrice(
 
   const {
     error: priceError,
-  } = await supabase
-    .from('price_history')
-    .upsert(
-      {
-        instrument_id:
-          instrumentId,
+  } =
+    await supabase
+      .from('price_history')
+      .upsert(
+        {
+          instrument_id:
+            instrumentId,
 
-        price_date:
-          date,
+          price_date:
+            date,
 
-        close_price:
-          price,
+          close_price:
+            price,
 
-        source:
-          'MANUAL',
-      },
-      {
-        onConflict:
-          'instrument_id,price_date',
-      }
-    )
+          source:
+            'MANUAL',
+        },
+        {
+          onConflict:
+            'instrument_id,price_date',
+        }
+      )
 
   if (priceError) {
     throw priceError
@@ -255,16 +448,17 @@ export async function saveManualUnitPrice(
   const {
     data: positions,
     error: positionsError,
-  } = await supabase
-    .from('positions')
-    .select(`
-      id,
-      quantity
-    `)
-    .eq(
-      'instrument_id',
-      instrumentId
-    )
+  } =
+    await supabase
+      .from('positions')
+      .select(`
+        id,
+        quantity
+      `)
+      .eq(
+        'instrument_id',
+        instrumentId
+      )
 
   if (positionsError) {
     throw positionsError
@@ -292,16 +486,20 @@ export async function saveManualUnitPrice(
 
     const {
       error: updateError,
-    } = await supabase
-      .from('positions')
-      .update({
-        current_value:
-          currentValue,
-      })
-      .eq(
-        'id',
-        position.id
-      )
+    } =
+      await supabase
+        .from('positions')
+        .update({
+          current_value:
+            currentValue,
+
+          valuation_date:
+            date,
+        })
+        .eq(
+          'id',
+          position.id
+        )
 
     if (updateError) {
       throw updateError
@@ -311,7 +509,9 @@ export async function saveManualUnitPrice(
 
 export async function saveManualTotalValue(
   instrumentId: string,
-  totalValue: number
+  totalValue: number,
+  valuationDate =
+    getLocalDateString()
 ) {
   if (
     !Number.isFinite(
@@ -324,16 +524,23 @@ export async function saveManualTotalValue(
     )
   }
 
+  if (!valuationDate) {
+    throw new Error(
+      'Datum ocenění je povinné.'
+    )
+  }
+
   const {
     data: positions,
     error,
-  } = await supabase
-    .from('positions')
-    .select('id')
-    .eq(
-      'instrument_id',
-      instrumentId
-    )
+  } =
+    await supabase
+      .from('positions')
+      .select('id')
+      .eq(
+        'instrument_id',
+        instrumentId
+      )
 
   if (error) {
     throw error
@@ -358,16 +565,20 @@ export async function saveManualTotalValue(
 
   const {
     error: updateError,
-  } = await supabase
-    .from('positions')
-    .update({
-      current_value:
-        totalValue,
-    })
-    .eq(
-      'id',
-      positions[0].id
-    )
+  } =
+    await supabase
+      .from('positions')
+      .update({
+        current_value:
+          totalValue,
+
+        valuation_date:
+          valuationDate,
+      })
+      .eq(
+        'id',
+        positions[0].id
+      )
 
   if (updateError) {
     throw updateError
@@ -419,15 +630,16 @@ export async function importManualPrices(
 
     const {
       error,
-    } = await supabase
-      .from('price_history')
-      .upsert(
-        batch,
-        {
-          onConflict:
-            'instrument_id,price_date',
-        }
-      )
+    } =
+      await supabase
+        .from('price_history')
+        .upsert(
+          batch,
+          {
+            onConflict:
+              'instrument_id,price_date',
+          }
+        )
 
     if (error) {
       throw error
