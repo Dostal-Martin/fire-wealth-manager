@@ -16,11 +16,12 @@ import {
 
 const PORTFOLIO_ID = '29cc8d4e-7548-45d0-9a11-ae4d53b55d62'
 
+type InstrumentIdentity = { name: string; ticker: string | null; asset_type: string | null }
 type TransactionRow = {
   id: string; portfolio_id: string; instrument_id: string; transaction_date: string; transaction_type: string
   quantity: number | string; unit_price: number | string; currency: string; fx_rate: number | string
   fees_czk: number | string; tax_czk: number | string; amount_czk: number | string; created_at: string | null
-  instruments: { name: string; ticker: string | null } | Array<{ name: string; ticker: string | null }> | null
+  instruments: InstrumentIdentity | InstrumentIdentity[] | null
 }
 type PositionRow = { instrument_id: string | null; quantity: number | string | null; current_value: number | string | null }
 type IncomeRow = { id: string; instrument_id: string | null; transaction_date: string; transaction_type: string; amount_czk: number | string }
@@ -45,18 +46,17 @@ export type TransactionLedgerOverview = {
 
 function toNumber(value: unknown, fallback = 0) {
   if (value === null || value === undefined || value === '') return fallback
-  const number = Number(value)
-  return Number.isFinite(number) ? number : fallback
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
 }
 function resolveInstrument(value: TransactionRow['instruments']) { return Array.isArray(value) ? (value[0] ?? null) : value }
 function normalizeType(value: string): LedgerTransactionType { return value.toUpperCase() === 'SELL' ? 'SELL' : 'BUY' }
 function normalizeIncomeType(value: string): InvestmentIncomeType {
   const type = value.toUpperCase()
-  if (type === 'COUPON') return 'COUPON'
-  if (type === 'INTEREST') return 'INTEREST'
+  if (type === 'COUPON' || type === 'COUPON_PAYMENT') return 'COUPON'
+  if (type === 'INTEREST' || type === 'INTEREST_PAYMENT') return 'INTEREST'
   return 'DIVIDEND'
 }
-
 function mapTransaction(row: TransactionRow): LedgerTransaction {
   return {
     id: row.id, portfolioId: row.portfolio_id, instrumentId: row.instrument_id,
@@ -66,7 +66,6 @@ function mapTransaction(row: TransactionRow): LedgerTransaction {
     amountCzk: toNumber(row.amount_czk), createdAt: row.created_at,
   }
 }
-
 function aggregatePositions(rows: PositionRow[]) {
   const result = new Map<string, PositionAggregation>()
   for (const row of rows) {
@@ -81,20 +80,22 @@ function aggregatePositions(rows: PositionRow[]) {
 
 export async function getTransactionLedgerOverview(): Promise<TransactionLedgerOverview> {
   const [transactionsResult, positionsResult, incomesResult] = await Promise.all([
-    supabase.from('transactions').select(`id, portfolio_id, instrument_id, transaction_date, transaction_type, quantity, unit_price, currency, fx_rate, fees_czk, tax_czk, amount_czk, created_at, instruments (name, ticker)`).eq('portfolio_id', PORTFOLIO_ID).order('transaction_date', { ascending: true }).order('created_at', { ascending: true }),
-    supabase.from('positions').select('instrument_id, quantity, current_value').eq('portfolio_id', PORTFOLIO_ID),
-    supabase.from('cashflows').select('id, instrument_id, transaction_date, transaction_type, amount_czk').eq('portfolio_id', PORTFOLIO_ID).in('transaction_type', ['DIVIDEND', 'COUPON', 'INTEREST']).not('instrument_id', 'is', null).order('transaction_date', { ascending: true }),
+    supabase.from('transactions').select(`id,portfolio_id,instrument_id,transaction_date,transaction_type,quantity,unit_price,currency,fx_rate,fees_czk,tax_czk,amount_czk,created_at,instruments(name,ticker,asset_type)`).eq('portfolio_id', PORTFOLIO_ID).order('transaction_date').order('created_at'),
+    supabase.from('positions').select('instrument_id,quantity,current_value').eq('portfolio_id', PORTFOLIO_ID),
+    supabase.from('cashflows').select('id,instrument_id,transaction_date,transaction_type,amount_czk').eq('portfolio_id', PORTFOLIO_ID).in('transaction_type', ['DIVIDEND', 'COUPON', 'INTEREST', 'COUPON_PAYMENT', 'INTEREST_PAYMENT']).not('instrument_id', 'is', null).order('transaction_date'),
   ])
   if (transactionsResult.error) throw transactionsResult.error
   if (positionsResult.error) throw positionsResult.error
   if (incomesResult.error) throw incomesResult.error
 
-  const transactionRows = (transactionsResult.data ?? []) as unknown as TransactionRow[]
-  const positionRows = (positionsResult.data ?? []) as unknown as PositionRow[]
+  const allTransactionRows = (transactionsResult.data ?? []) as unknown as TransactionRow[]
+  const investmentRows = allTransactionRows.filter((row) => (resolveInstrument(row.instruments)?.asset_type ?? '').toLocaleLowerCase('cs') !== 'hotovost')
+  const investmentIds = new Set(investmentRows.map((row) => row.instrument_id))
+  const positionRows = ((positionsResult.data ?? []) as unknown as PositionRow[]).filter((row) => Boolean(row.instrument_id && investmentIds.has(row.instrument_id)))
   const incomeRows = (incomesResult.data ?? []) as unknown as IncomeRow[]
-  const transactions = transactionRows.map(mapTransaction)
+  const transactions = investmentRows.map(mapTransaction)
   const incomes: InvestmentIncome[] = incomeRows
-    .filter((row): row is IncomeRow & { instrument_id: string } => Boolean(row.instrument_id))
+    .filter((row): row is IncomeRow & { instrument_id: string } => Boolean(row.instrument_id && investmentIds.has(row.instrument_id)))
     .map((row) => ({ id: row.id, instrumentId: row.instrument_id, transactionDate: row.transaction_date, incomeType: normalizeIncomeType(row.transaction_type), amountCzk: toNumber(row.amount_czk) }))
 
   const incomeByInstrument = aggregateInvestmentIncome(incomes)
@@ -103,25 +104,17 @@ export async function getTransactionLedgerOverview(): Promise<TransactionLedgerO
   const positions: LedgerPosition[] = Array.from(positionAggregation.entries()).map(([instrumentId, position]) => ({ instrumentId, quantity: position.quantity }))
   const reconciliations = reconcileLedgerWithPositions(ledgerResults, positions)
   const reconciliationByInstrument = new Map(reconciliations.map((row) => [row.instrumentId, row]))
-  const instrumentNameById = new Map<string, { name: string; ticker: string | null }>()
-  for (const row of transactionRows) {
+  const identityById = new Map<string, InstrumentIdentity>()
+  for (const row of investmentRows) {
     const instrument = resolveInstrument(row.instruments)
-    if (instrument) instrumentNameById.set(row.instrument_id, instrument)
+    if (instrument) identityById.set(row.instrument_id, instrument)
   }
 
-  const emptyIncome = (instrumentId: string): InstrumentIncomeSummary => ({
-    instrumentId, dividendIncomeCzk: 0, couponIncomeCzk: 0, interestIncomeCzk: 0,
-    investmentIncomeCzk: 0, incomeCount: 0,
-  })
-
+  const emptyIncome = (instrumentId: string): InstrumentIncomeSummary => ({ instrumentId, dividendIncomeCzk: 0, couponIncomeCzk: 0, interestIncomeCzk: 0, investmentIncomeCzk: 0, incomeCount: 0 })
   const instruments: TransactionLedgerInstrument[] = ledgerResults.map((ledger) => {
-    const identity = instrumentNameById.get(ledger.instrumentId)
+    const identity = identityById.get(ledger.instrumentId)
     const reconciliation = reconciliationByInstrument.get(ledger.instrumentId)
-    const performance = calculateInvestmentPerformance(
-      ledger,
-      positionAggregation.get(ledger.instrumentId)?.currentValue ?? 0,
-      incomeByInstrument.get(ledger.instrumentId) ?? emptyIncome(ledger.instrumentId),
-    )
+    const performance = calculateInvestmentPerformance(ledger, positionAggregation.get(ledger.instrumentId)?.currentValue ?? 0, incomeByInstrument.get(ledger.instrumentId) ?? emptyIncome(ledger.instrumentId))
     return {
       ...ledger, instrumentName: identity?.name ?? ledger.instrumentId, ticker: identity?.ticker ?? null,
       positionQuantity: reconciliation?.positionQuantity ?? null,
@@ -140,15 +133,10 @@ export async function getTransactionLedgerOverview(): Promise<TransactionLedgerO
     mismatchCount: instruments.filter((item) => item.reconciliationStatus === 'MISMATCH').length,
     noPositionCount: instruments.filter((item) => item.reconciliationStatus === 'NO_POSITION').length,
     noLedgerCount: reconciliations.filter((item) => item.status === 'NO_LEDGER').length,
-    invalidTransactionCount: sum((item) => item.invalidTransactionCount),
-    realizedProfitLossCzk: sum((item) => item.realizedProfitLossCzk),
-    unrealizedProfitLossCzk: sum((item) => item.unrealizedProfitLossCzk),
-    dividendIncomeCzk: sum((item) => item.dividendIncomeCzk),
-    couponIncomeCzk: sum((item) => item.couponIncomeCzk),
-    interestIncomeCzk: sum((item) => item.interestIncomeCzk),
-    investmentIncomeCzk: sum((item) => item.investmentIncomeCzk),
-    totalProfitLossCzk: sum((item) => item.totalProfitLossCzk),
-    remainingCostBasisCzk: sum((item) => item.remainingCostBasisCzk),
-    currentValueCzk: sum((item) => item.currentValueCzk),
+    invalidTransactionCount: sum((item) => item.invalidTransactionCount), realizedProfitLossCzk: sum((item) => item.realizedProfitLossCzk),
+    unrealizedProfitLossCzk: sum((item) => item.unrealizedProfitLossCzk), dividendIncomeCzk: sum((item) => item.dividendIncomeCzk),
+    couponIncomeCzk: sum((item) => item.couponIncomeCzk), interestIncomeCzk: sum((item) => item.interestIncomeCzk),
+    investmentIncomeCzk: sum((item) => item.investmentIncomeCzk), totalProfitLossCzk: sum((item) => item.totalProfitLossCzk),
+    remainingCostBasisCzk: sum((item) => item.remainingCostBasisCzk), currentValueCzk: sum((item) => item.currentValueCzk),
   }
 }
