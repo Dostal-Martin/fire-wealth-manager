@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import DecimalInput from './DecimalInput'
 import {
   createInvestmentIncome,
   getIncomeCashAccounts,
@@ -19,11 +20,6 @@ function localDate() {
   return `${year}-${month}-${day}`
 }
 
-function parseNumber(value: string) {
-  const normalized = value.replace(/\s/g, '').replace(',', '.')
-  const parsed = Number(normalized)
-  return Number.isFinite(parsed) ? parsed : 0
-}
 
 function typeLabel(type: InvestmentIncomeEntryType) {
   if (type === 'DIVIDEND') return 'Dividenda'
@@ -175,22 +171,22 @@ export default function InvestmentIncomeForm({ onSaved }: { onSaved?: () => void
 
             <label>
               <span className="form-label">Hrubá částka ({form.currency})</span>
-              <input className="form-control" inputMode="decimal" required value={form.amountNative || ''} onChange={(event) => setForm((current) => ({ ...current, amountNative: parseNumber(event.target.value) }))} />
+              <DecimalInput value={form.amountNative} onValueChange={(amountNative) => setForm((current) => ({ ...current, amountNative }))} required decimalPlaces={4} />
             </label>
 
             <label>
               <span className="form-label">Daň ({form.currency})</span>
-              <input className="form-control" inputMode="decimal" value={form.taxNative || ''} onChange={(event) => setForm((current) => ({ ...current, taxNative: parseNumber(event.target.value) }))} />
+              <DecimalInput value={form.taxNative} onValueChange={(taxNative) => setForm((current) => ({ ...current, taxNative }))} decimalPlaces={4} />
             </label>
 
             <label>
               <span className="form-label">Poplatek ({form.currency})</span>
-              <input className="form-control" inputMode="decimal" value={form.feeNative || ''} onChange={(event) => setForm((current) => ({ ...current, feeNative: parseNumber(event.target.value) }))} />
+              <DecimalInput value={form.feeNative} onValueChange={(feeNative) => setForm((current) => ({ ...current, feeNative }))} decimalPlaces={4} />
             </label>
 
             <label>
               <span className="form-label">FX kurz do CZK</span>
-              <input className="form-control" inputMode="decimal" required value={form.fxRate || ''} onChange={(event) => setForm((current) => ({ ...current, fxRate: parseNumber(event.target.value) }))} />
+              <DecimalInput value={form.fxRate} onValueChange={(fxRate) => setForm((current) => ({ ...current, fxRate }))} required readOnly={form.currency === 'CZK'} decimalPlaces={6} />
             </label>
           </div>
 

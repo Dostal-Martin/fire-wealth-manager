@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import DecimalInput from './DecimalInput'
 import {
   validateManualTransaction,
   type ManualTransactionInput,
@@ -19,11 +20,6 @@ function localDate() {
   return `${year}-${month}-${day}`
 }
 
-function numberValue(value: string) {
-  const normalized = value.replace(/\s/g, '').replace(',', '.').trim()
-  const parsed = normalized === '' ? 0 : Number(normalized)
-  return Number.isFinite(parsed) ? parsed : 0
-}
 
 function formatMoney(value: number) {
   return value.toLocaleString('cs-CZ', {
@@ -188,11 +184,11 @@ export default function ManualTransactionForm({ onSaved }: { onSaved: () => void
             </Field>
 
             <Field label="Množství">
-              <input className="form-control" inputMode="decimal" required value={form.quantity || ''} onChange={(event) => update('quantity', numberValue(event.target.value))} />
+              <DecimalInput value={form.quantity} onValueChange={(value) => update('quantity', value)} required decimalPlaces={6} />
             </Field>
 
             <Field label={`Cena za jednotku (${form.currency})`}>
-              <input className="form-control" inputMode="decimal" required value={form.unitPrice || ''} onChange={(event) => update('unitPrice', numberValue(event.target.value))} />
+              <DecimalInput value={form.unitPrice} onValueChange={(value) => update('unitPrice', value)} required decimalPlaces={6} />
             </Field>
 
             <Field label="Měna">
@@ -200,15 +196,15 @@ export default function ManualTransactionForm({ onSaved }: { onSaved: () => void
             </Field>
 
             <Field label="FX kurz do CZK">
-              <input className="form-control" inputMode="decimal" required value={form.fxRate || ''} onChange={(event) => update('fxRate', numberValue(event.target.value))} />
+              <DecimalInput value={form.fxRate} onValueChange={(value) => update('fxRate', value)} required readOnly={form.currency === 'CZK'} decimalPlaces={6} />
             </Field>
 
             <Field label={`Poplatek (${form.currency})`}>
-              <input className="form-control" inputMode="decimal" value={form.feesNative || ''} onChange={(event) => update('feesNative', numberValue(event.target.value))} />
+              <DecimalInput value={form.feesNative} onValueChange={(value) => update('feesNative', value)} decimalPlaces={4} />
             </Field>
 
             <Field label={`Daň (${form.currency})`}>
-              <input className="form-control" inputMode="decimal" value={form.taxNative || ''} onChange={(event) => update('taxNative', numberValue(event.target.value))} />
+              <DecimalInput value={form.taxNative} onValueChange={(value) => update('taxNative', value)} decimalPlaces={4} />
             </Field>
           </div>
 

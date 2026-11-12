@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import DecimalInput from './DecimalInput'
 import {
   createExternalCashflow,
   getExternalCashAccounts,
@@ -14,10 +15,6 @@ function localDate() {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-function parseNumber(value: string) {
-  const parsed = Number(value.replace(/\s/g, '').replace(',', '.').trim())
-  return Number.isFinite(parsed) ? parsed : 0
-}
 
 function accountLabel(account: ExternalCashAccount) {
   return `${account.name}${account.ticker ? ` · ${account.ticker}` : ''} · ${account.currency}`
@@ -139,7 +136,7 @@ export default function ExternalCashflowForm({ onSaved }: { onSaved?: () => void
 
             <label>
               <span className="form-label">Částka ({form.currency})</span>
-              <input className="form-control" inputMode="decimal" required value={form.amountNative || ''} onChange={(event) => setForm((current) => ({ ...current, amountNative: parseNumber(event.target.value) }))} />
+              <DecimalInput value={form.amountNative} onValueChange={(amountNative) => setForm((current) => ({ ...current, amountNative }))} required decimalPlaces={4} />
             </label>
 
             <label>
@@ -149,7 +146,7 @@ export default function ExternalCashflowForm({ onSaved }: { onSaved?: () => void
 
             <label>
               <span className="form-label">FX kurz do CZK</span>
-              <input className="form-control" inputMode="decimal" required readOnly={form.currency === 'CZK'} value={form.fxRate || ''} onChange={(event) => setForm((current) => ({ ...current, fxRate: parseNumber(event.target.value) }))} />
+              <DecimalInput value={form.fxRate} onValueChange={(fxRate) => setForm((current) => ({ ...current, fxRate }))} required readOnly={form.currency === 'CZK'} decimalPlaces={6} />
             </label>
           </div>
 
