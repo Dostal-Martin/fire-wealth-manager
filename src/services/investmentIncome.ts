@@ -8,6 +8,7 @@ export type IncomeInstrument = {
   name: string
   ticker: string | null
   currency: string
+  assetType: string
 }
 
 export type IncomeCashAccount = {
@@ -21,7 +22,6 @@ export async function getIncomeInstruments(): Promise<IncomeInstrument[]> {
   const { data, error } = await supabase
     .from('instruments')
     .select('id,name,ticker,currency,asset_type')
-    .neq('asset_type', 'Hotovost')
     .order('name')
 
   if (error) throw error
@@ -30,6 +30,7 @@ export async function getIncomeInstruments(): Promise<IncomeInstrument[]> {
     name: row.name,
     ticker: row.ticker ?? null,
     currency: (row.currency ?? 'CZK').toUpperCase(),
+    assetType: row.asset_type ?? '',
   }))
 }
 

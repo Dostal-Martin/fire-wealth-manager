@@ -67,10 +67,20 @@ export default function InvestmentIncomeForm({ onSaved }: { onSaved?: () => void
       })
   }, [])
 
-  const matchingAccounts = useMemo(
-    () => cashAccounts.filter((account) => account.currency === form.currency),
-    [cashAccounts, form.currency],
+  const selectedInstrument = useMemo(
+    () => instruments.find((instrument) => instrument.id === form.instrumentId) ?? null,
+    [instruments, form.instrumentId],
   )
+
+  const sourceIsCash = selectedInstrument?.assetType.toLocaleLowerCase('cs') === 'hotovost'
+
+  const matchingAccounts = useMemo(() => {
+    const sameCurrency = cashAccounts.filter((account) => account.currency === form.currency)
+    if (form.transactionType === 'INTEREST' && sourceIsCash && selectedInstrument) {
+      return sameCurrency.filter((account) => account.id === selectedInstrument.id)
+    }
+    return sameCurrency
+  }, [cashAccounts, form.currency, form.transactionType, sourceIsCash, selectedInstrument])
 
   const netNative = Math.max(0, form.amountNative - form.taxNative - form.feeNative)
   const netCzk = netNative * form.fxRate
@@ -78,7 +88,10 @@ export default function InvestmentIncomeForm({ onSaved }: { onSaved?: () => void
   function selectInstrument(instrumentId: string) {
     const instrument = instruments.find((item) => item.id === instrumentId)
     const currency = instrument?.currency ?? 'CZK'
-    const preferred = cashAccounts.find((account) => account.currency === currency)
+    const isCash = instrument?.assetType.toLocaleLowerCase('cs') === 'hotovost'
+    const preferred = isCash
+      ? cashAccounts.find((account) => account.id === instrumentId)
+      : cashAccounts.find((account) => account.currency === currency)
 
     setForm((current) => ({
       ...current,
@@ -86,6 +99,7 @@ export default function InvestmentIncomeForm({ onSaved }: { onSaved?: () => void
       currency,
       fxRate: currency === 'CZK' ? 1 : current.fxRate,
       cashInstrumentId: preferred?.id ?? '',
+      transactionType: isCash ? 'INTEREST' : current.transactionType,
     }))
   }
 
@@ -125,7 +139,7 @@ export default function InvestmentIncomeForm({ onSaved }: { onSaved?: () => void
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
             <label>
               <span className="form-label">Typ</span>
-              <select className="form-control" value={form.transactionType} onChange={(event) => setForm((current) => ({ ...current, transactionType: event.target.value as InvestmentIncomeEntryType }))}>
+              <select className="form-control" value={form.transactionType} onChange={(event) => { const transactionType = event.target.value as InvestmentIncomeEntryType; setForm((current) => ({ ...current, transactionType })); }}>
                 <option value="DIVIDEND">Dividenda</option>
                 <option value="COUPON">Kupón</option>
                 <option value="INTEREST">Úrok</option>
@@ -133,10 +147,10 @@ export default function InvestmentIncomeForm({ onSaved }: { onSaved?: () => void
             </label>
 
             <label>
-              <span className="form-label">Zdrojový instrument</span>
+              <span className="form-label">Zdroj příjmu / instrument</span>
               <select className="form-control" required value={form.instrumentId} onChange={(event) => selectInstrument(event.target.value)}>
                 <option value="">Vyberte instrument</option>
-                {instruments.map((instrument) => <option key={instrument.id} value={instrument.id}>{instrument.name}{instrument.ticker ? ` (${instrument.ticker})` : ''}</option>)}
+                {instruments.map((instrument) => <option key={instrument.id} value={instrument.id}>{instrument.name}{instrument.ticker ? ` (${instrument.ticker})` : ''}{instrument.assetType.toLocaleLowerCase('cs') === 'hotovost' ? ' · úrok' : ''}</option>)}
               </select>
             </label>
 
@@ -190,6 +204,12 @@ export default function InvestmentIncomeForm({ onSaved }: { onSaved?: () => void
               <div className="kpi-value positive">{netCzk.toLocaleString('cs-CZ', { style: 'currency', currency: 'CZK', maximumFractionDigits: 0 })}</div>
             </div>
           </div>
+
+          {sourceIsCash && form.transactionType === 'INTEREST' && (
+            <div style={{ marginTop: '10px', color: 'var(--text-muted)', fontSize: '10px', lineHeight: 1.5 }}>
+              Úrok ze spořicího nebo hotovostního účtu se připíše přímo na tentýž účet. Dividendy a kupóny používají investiční instrument jako zdroj a hotovostní účet stejné měny jako cíl.
+            </div>
+          )}
 
           <div style={{ marginTop: '12px' }}>
             <label>
