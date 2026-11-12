@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import {
+  createEconomicImportFingerprint,
   createImportFingerprint,
   finalizeImportRow,
   normalizeWorkbookRow,
@@ -11,7 +12,7 @@ import {
 
 const PORTFOLIO_ID = '29cc8d4e-7548-45d0-9a11-ae4d53b55d62'
 type SheetRow = Record<string, unknown>
-type ExistingTransactionRow = { transaction_date: string; transaction_type: string; instrument_id: string; quantity: number | string; amount_czk: number | string; currency: string }
+type ExistingTransactionRow = { transaction_date: string; transaction_type: string; instrument_id: string; quantity: number | string; amount_czk: number | string; currency: string; instruments: { name:string; ticker:string|null; isin:string|null } | Array<{ name:string; ticker:string|null; isin:string|null }> | null }
 type ExistingCashflowRow = { transaction_date: string; transaction_type: string; instrument_id: string | null; shares: number | string | null; amount_czk: number | string; currency: string }
 
 export type ImportDryRun = {
@@ -34,7 +35,7 @@ function normalizeCashflowType(value: string) { return value === 'CONTRIBUTION' 
 async function loadDryRunContext() {
   const [instrumentResult, transactionResult, cashflowResult] = await Promise.all([
     supabase.from('instruments').select('id,name,ticker,isin,asset_type').order('name'),
-    supabase.from('transactions').select('transaction_date,transaction_type,instrument_id,quantity,amount_czk,currency').eq('portfolio_id', PORTFOLIO_ID),
+    supabase.from('transactions').select('transaction_date,transaction_type,instrument_id,quantity,amount_czk,currency,instruments(name,ticker,isin)').eq('portfolio_id', PORTFOLIO_ID),
     supabase.from('cashflows').select('transaction_date,transaction_type,instrument_id,shares,amount_czk,currency').eq('portfolio_id', PORTFOLIO_ID),
   ])
   if (instrumentResult.error) throw instrumentResult.error
@@ -44,17 +45,28 @@ async function loadDryRunContext() {
   const instruments = (instrumentResult.data ?? []) as ImportInstrument[]
   const cashInstrumentIds = new Set(instruments.filter((item) => item.asset_type?.toLocaleLowerCase('cs') === 'hotovost').map((item) => item.id))
   const fingerprints = new Set<string>()
+  const economicFingerprints = new Set<string>()
 
   for (const row of (transactionResult.data ?? []) as ExistingTransactionRow[]) {
     if (cashInstrumentIds.has(row.instrument_id)) continue
-    fingerprints.add(createImportFingerprint({ transactionDate: row.transaction_date, eventType: row.transaction_type === 'SELL' ? 'SELL' : 'BUY', instrumentId: row.instrument_id, quantity: number(row.quantity), amountCzk: number(row.amount_czk), currency: row.currency }))
+    const eventType = row.transaction_type === 'SELL' ? 'SELL' : 'BUY'
+    fingerprints.add(createImportFingerprint({ transactionDate: row.transaction_date, eventType, instrumentId: row.instrument_id, quantity: number(row.quantity), amountCzk: number(row.amount_czk), currency: row.currency }))
+    const relation = Array.isArray(row.instruments) ? row.instruments[0] : row.instruments
+    economicFingerprints.add(createEconomicImportFingerprint({
+      transactionDate: row.transaction_date,
+      eventType,
+      instrumentIdentity: relation?.isin || relation?.ticker || relation?.name || row.instrument_id,
+      quantity: number(row.quantity),
+      amountCzk: number(row.amount_czk),
+      currency: row.currency,
+    }))
   }
   for (const row of (cashflowResult.data ?? []) as ExistingCashflowRow[]) {
     const eventType = normalizeCashflowType(row.transaction_type)
     if (!['DIVIDEND', 'COUPON', 'INTEREST', 'DEPOSIT', 'WITHDRAWAL'].includes(eventType)) continue
     fingerprints.add(createImportFingerprint({ transactionDate: row.transaction_date, eventType: eventType as 'DIVIDEND' | 'COUPON' | 'INTEREST' | 'DEPOSIT' | 'WITHDRAWAL', instrumentId: row.instrument_id, quantity: number(row.shares), amountCzk: number(row.amount_czk), currency: row.currency }))
   }
-  return { instruments, fingerprints }
+  return { instruments, fingerprints, economicFingerprints }
 }
 
 export async function analyzeTransactionWorkbook(file: File): Promise<ImportDryRun> {
@@ -67,8 +79,8 @@ export async function analyzeTransactionWorkbook(file: File): Promise<ImportDryR
     const missing = requiredHeaders.filter((header) => !(header in rawRows[0]))
     if (missing.length > 0) throw new Error(`Chybí povinné sloupce: ${missing.join(', ')}.`)
   }
-  const { instruments, fingerprints } = await loadDryRunContext()
-  const rows = rawRows.map(toWorkbookRow).map((row) => normalizeWorkbookRow(row)).map((row) => finalizeImportRow(row, instruments, fingerprints))
+  const { instruments, fingerprints, economicFingerprints } = await loadDryRunContext()
+  const rows = rawRows.map(toWorkbookRow).map((row) => normalizeWorkbookRow(row)).map((row) => finalizeImportRow(row, instruments, fingerprints, economicFingerprints))
   return {
     fileName: file.name, sheetName, rows, totalCount: rows.length,
     newCount: rows.filter((row) => row.status === 'NEW').length,
@@ -85,6 +97,23 @@ function historicalExternalId(row: ResolvedImportRow) {
 }
 async function importHistoricalTrade(row: ResolvedImportRow) {
   if (!row.instrumentId || !row.eventType || !row.quantity || !row.unitPrice || !row.fxRate || !row.amountCzk) throw new Error('Řádek nemá všechna povinná data obchodu.')
+
+  const { data: existing, error: existingError } = await supabase
+    .from('transactions')
+    .select('id')
+    .eq('portfolio_id', PORTFOLIO_ID)
+    .eq('instrument_id', row.instrumentId)
+    .eq('transaction_date', row.transactionDate)
+    .eq('transaction_type', row.eventType)
+    .gte('quantity', row.quantity - 0.000001)
+    .lte('quantity', row.quantity + 0.000001)
+    .gte('amount_czk', row.amountCzk - 0.01)
+    .lte('amount_czk', row.amountCzk + 0.01)
+    .limit(1)
+
+  if (existingError) throw existingError
+  if ((existing ?? []).length > 0) return 'EXISTS' as const
+
   const { error } = await supabase.from('transactions').insert({
     portfolio_id: PORTFOLIO_ID, instrument_id: row.instrumentId, transaction_date: row.transactionDate,
     transaction_type: row.eventType, quantity: row.quantity, unit_price: row.unitPrice, currency: row.currency,
@@ -92,7 +121,11 @@ async function importHistoricalTrade(row: ResolvedImportRow) {
     source: 'csv_import', external_id: historicalExternalId(row),
     note: 'Historický import z Excelu. Pozice nebyla automaticky změněna.',
   })
-  if (error) throw error
+  if (error) {
+    if (error.code === '23505') return 'EXISTS' as const
+    throw error
+  }
+  return 'IMPORTED' as const
 }
 async function importHistoricalCashflow(row: ResolvedImportRow) {
   if (!row.eventType || !row.amountCzk) throw new Error('Řádek nemá všechna povinná data cashflow.')
@@ -112,9 +145,13 @@ export async function importNewHistoricalRows(rows: ResolvedImportRow[]): Promis
   let importedCount = 0
   for (const row of importable) {
     try {
-      if (row.eventType === 'BUY' || row.eventType === 'SELL') await importHistoricalTrade(row)
-      else await importHistoricalCashflow(row)
-      importedCount += 1
+      if (row.eventType === 'BUY' || row.eventType === 'SELL') {
+        const status = await importHistoricalTrade(row)
+        if (status === 'IMPORTED') importedCount += 1
+      } else {
+        await importHistoricalCashflow(row)
+        importedCount += 1
+      }
     } catch (reason) {
       errors.push({ rowNumber: row.rowNumber, message: reason instanceof Error ? reason.message : String(reason) })
     }

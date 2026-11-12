@@ -115,7 +115,25 @@ function fixed(value: number | null, digits = 4) { return value === null ? '' : 
 export function createImportFingerprint(row: { transactionDate: string; eventType: ImportEventType | null; instrumentId: string | null; quantity: number | null; amountCzk: number | null; currency: string }) {
   return [row.transactionDate, row.eventType ?? '', row.instrumentId ?? '', fixed(row.quantity, 6), fixed(row.amountCzk, 2), row.currency].join('|')
 }
-export function finalizeImportRow(row: NormalizedImportRow, instruments: ImportInstrument[], existingFingerprints: Set<string>): ResolvedImportRow {
+
+export function createEconomicImportFingerprint(row: {
+  transactionDate: string
+  eventType: ImportEventType | null
+  instrumentIdentity: string
+  quantity: number | null
+  amountCzk: number | null
+  currency: string
+}) {
+  return [
+    row.transactionDate,
+    row.eventType ?? '',
+    normalizeKey(row.instrumentIdentity),
+    fixed(row.quantity, 6),
+    fixed(row.amountCzk, 2),
+    row.currency.toUpperCase(),
+  ].join('|')
+}
+export function finalizeImportRow(row: NormalizedImportRow, instruments: ImportInstrument[], existingFingerprints: Set<string>, existingEconomicFingerprints: Set<string> = new Set()): ResolvedImportRow {
   const instrument = resolveInstrument(row, instruments)
   const errors = [...row.errors]
   if (row.requiresInstrument && !instrument) errors.push(`Instrument „${row.positionName || row.positionId}“ nebyl nalezen.`)
@@ -126,7 +144,16 @@ export function finalizeImportRow(row: NormalizedImportRow, instruments: ImportI
     ? 'Hotovostní nebo spořicí účet se neimportuje jako BUY/SELL. Bez známého zdroje a cíle nelze bezpečně vytvořit historický interní převod.'
     : null
 
-  const duplicate = existingFingerprints.has(createImportFingerprint({ ...row, instrumentId: instrument?.id ?? null }))
+  const strictDuplicate = existingFingerprints.has(createImportFingerprint({ ...row, instrumentId: instrument?.id ?? null }))
+  const economicDuplicate = existingEconomicFingerprints.has(createEconomicImportFingerprint({
+    transactionDate: row.transactionDate,
+    eventType: row.eventType,
+    instrumentIdentity: instrument?.isin || instrument?.ticker || instrument?.name || row.positionId || row.positionName,
+    quantity: row.quantity,
+    amountCzk: row.amountCzk,
+    currency: row.currency,
+  }))
+  const duplicate = strictDuplicate || economicDuplicate
   let status: ImportStatus = 'NEW'
   if (errors.length > 0) status = 'ERROR'
   else if (cashTrade) status = 'SKIPPED'
