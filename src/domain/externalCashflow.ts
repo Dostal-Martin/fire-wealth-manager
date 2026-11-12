@@ -1,47 +1,20 @@
 export type ExternalCashflowType = 'DEPOSIT' | 'WITHDRAWAL'
-
 export type ExternalCashflowInput = {
+  cashInstrumentId: string
   transactionDate: string
   transactionType: ExternalCashflowType
-  amountCzk: number
+  amountNative: number
+  currency: string
+  fxRate: number
   note: string
 }
-
-export type ExternalCashflowValidation = {
-  valid: boolean
-  errors: string[]
-  storedAmountCzk: number
-}
-
-export function getStoredExternalCashflowAmount(
-  transactionType: ExternalCashflowType,
-  amountCzk: number,
-) {
-  const absoluteAmount = Math.abs(amountCzk)
-  return transactionType === 'DEPOSIT'
-    ? absoluteAmount
-    : -absoluteAmount
-}
-
-export function validateExternalCashflow(
-  input: ExternalCashflowInput,
-): ExternalCashflowValidation {
+export function validateExternalCashflow(input: ExternalCashflowInput) {
   const errors: string[] = []
-
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.transactionDate)) {
-    errors.push('Zadejte platné datum.')
-  }
-
-  if (!Number.isFinite(input.amountCzk) || input.amountCzk <= 0) {
-    errors.push('Částka musí být větší než nula.')
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-    storedAmountCzk: getStoredExternalCashflowAmount(
-      input.transactionType,
-      input.amountCzk,
-    ),
-  }
+  if (!input.cashInstrumentId) errors.push('Vyberte hotovostní účet.')
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.transactionDate)) errors.push('Zadejte platné datum.')
+  if (!['DEPOSIT','WITHDRAWAL'].includes(input.transactionType)) errors.push('Neplatný typ externího cashflow.')
+  if (!Number.isFinite(input.amountNative) || input.amountNative <= 0) errors.push('Částka musí být větší než nula.')
+  if (!/^[A-Z]{3}$/.test(input.currency)) errors.push('Měna musí být třípísmenný kód.')
+  if (!Number.isFinite(input.fxRate) || input.fxRate <= 0) errors.push('FX kurz musí být větší než nula.')
+  return { valid: errors.length === 0, errors, amountCzk: input.amountNative * input.fxRate }
 }

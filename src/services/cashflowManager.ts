@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase'
-import { createExternalCashflow as createAtomicExternalCashflow } from './externalCashflow'
 
 export type ExternalCashflowType = 'CONTRIBUTION' | 'DEPOSIT' | 'WITHDRAWAL'
 
@@ -13,23 +12,26 @@ export async function getCashflows() {
   return data ?? []
 }
 
+/**
+ * Legacy compatibility helper.
+ * New external deposits/withdrawals are created exclusively through
+ * src/services/externalCashflow.ts, where the user selects the cash account,
+ * native currency amount and FX rate.
+ */
 export async function createExternalCashflow(
-  date: string,
-  type: ExternalCashflowType,
-  amount: number,
-  note: string,
-) {
-  return createAtomicExternalCashflow({
-    transactionDate: date,
-    transactionType: type === 'WITHDRAWAL' ? 'WITHDRAWAL' : 'DEPOSIT',
-    amountCzk: Math.abs(amount),
-    note,
-  })
+  _date: string,
+  _type: ExternalCashflowType,
+  _amount: number,
+  _note: string,
+): Promise<never> {
+  throw new Error(
+    'Tento starý způsob zápisu externího cashflow už není podporován. Použij formulář Externí kapitál se zvoleným hotovostním účtem.',
+  )
 }
 
 export async function deleteCashflow(id: string) {
   // Mazání externího toku by muselo atomicky vrátit i hotovost a snapshot.
-  // Po zavedení hotovostního účtu proto přímé mazání zakazujeme.
+  // Proto přímé mazání externích pohybů zakazujeme a používáme opačný opravný pohyb.
   const { data, error } = await supabase
     .from('cashflows')
     .select('is_external')

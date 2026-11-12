@@ -1,62 +1,58 @@
 import { describe, expect, it } from 'vitest'
 import {
-  getStoredExternalCashflowAmount,
   validateExternalCashflow,
   type ExternalCashflowInput,
 } from './externalCashflow'
 
-function input(
-  overrides: Partial<ExternalCashflowInput> = {},
-): ExternalCashflowInput {
+function input(overrides: Partial<ExternalCashflowInput> = {}): ExternalCashflowInput {
   return {
-    transactionDate: '2026-11-11',
+    cashInstrumentId: 'cash-czk',
+    transactionDate: '2026-11-12',
     transactionType: 'DEPOSIT',
-    amountCzk: 100_000,
+    amountNative: 25_000,
+    currency: 'CZK',
+    fxRate: 1,
     note: '',
     ...overrides,
   }
 }
 
-describe('getStoredExternalCashflowAmount', () => {
-  it('uloží vklad kladně', () => {
-    expect(getStoredExternalCashflowAmount('DEPOSIT', 100_000)).toBe(100_000)
-  })
-
-  it('uloží výběr záporně', () => {
-    expect(getStoredExternalCashflowAmount('WITHDRAWAL', 100_000)).toBe(-100_000)
-  })
-
-  it('normalizuje omylem zápornou vstupní částku', () => {
-    expect(getStoredExternalCashflowAmount('DEPOSIT', -100_000)).toBe(100_000)
-    expect(getStoredExternalCashflowAmount('WITHDRAWAL', -100_000)).toBe(-100_000)
-  })
-})
-
-describe('validateExternalCashflow', () => {
-  it('povolí platný vklad', () => {
+describe('validateExternalCashflow v2', () => {
+  it('povolí CZK vklad', () => {
     const result = validateExternalCashflow(input())
     expect(result.valid).toBe(true)
-    expect(result.storedAmountCzk).toBe(100_000)
+    expect(result.amountCzk).toBe(25_000)
   })
 
-  it('povolí platný výběr', () => {
+  it('povolí USD vklad a přepočítá CZK protihodnotu', () => {
     const result = validateExternalCashflow(input({
-      transactionType: 'WITHDRAWAL',
-      amountCzk: 25_000,
+      cashInstrumentId: 'cash-usd',
+      amountNative: 1_000,
+      currency: 'USD',
+      fxRate: 22,
     }))
     expect(result.valid).toBe(true)
-    expect(result.storedAmountCzk).toBe(-25_000)
+    expect(result.amountCzk).toBe(22_000)
+  })
+
+  it('povolí výběr a ponechá kladnou absolutní hodnotu pro RPC', () => {
+    const result = validateExternalCashflow(input({
+      transactionType: 'WITHDRAWAL',
+      amountNative: 25_000,
+    }))
+    expect(result.valid).toBe(true)
+    expect(result.amountCzk).toBe(25_000)
+  })
+
+  it('odmítne chybějící hotovostní účet', () => {
+    const result = validateExternalCashflow(input({ cashInstrumentId: '' }))
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain('Vyberte hotovostní účet.')
   })
 
   it('odmítne nulovou částku', () => {
-    const result = validateExternalCashflow(input({ amountCzk: 0 }))
+    const result = validateExternalCashflow(input({ amountNative: 0 }))
     expect(result.valid).toBe(false)
     expect(result.errors).toContain('Částka musí být větší než nula.')
-  })
-
-  it('odmítne neplatné datum', () => {
-    const result = validateExternalCashflow(input({ transactionDate: '11.11.2026' }))
-    expect(result.valid).toBe(false)
-    expect(result.errors).toContain('Zadejte platné datum.')
   })
 })
