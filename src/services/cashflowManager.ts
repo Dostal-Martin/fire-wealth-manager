@@ -2,10 +2,20 @@ import { supabase } from '../lib/supabase'
 
 export type ExternalCashflowType = 'CONTRIBUTION' | 'DEPOSIT' | 'WITHDRAWAL'
 
+const CASHFLOW_TYPES = [
+  'CONTRIBUTION',
+  'DEPOSIT',
+  'WITHDRAWAL',
+  'DIVIDEND',
+  'COUPON',
+  'INTEREST',
+]
+
 export async function getCashflows() {
   const { data, error } = await supabase
     .from('cashflows')
     .select(`*, instruments (name)`)
+    .in('transaction_type', CASHFLOW_TYPES)
     .order('transaction_date', { ascending: false })
 
   if (error) throw error
@@ -14,9 +24,8 @@ export async function getCashflows() {
 
 /**
  * Legacy compatibility helper.
- * New external deposits/withdrawals are created exclusively through
- * src/services/externalCashflow.ts, where the user selects the cash account,
- * native currency amount and FX rate.
+ * New external deposits/withdrawals are created through externalCashflow.ts,
+ * where the user selects the actual cash account, currency and FX rate.
  */
 export async function createExternalCashflow(
   _date: string,
@@ -25,13 +34,11 @@ export async function createExternalCashflow(
   _note: string,
 ): Promise<never> {
   throw new Error(
-    'Tento starý způsob zápisu externího cashflow už není podporován. Použij formulář Externí kapitál se zvoleným hotovostním účtem.',
+    'Starý způsob zápisu externího cashflow už není podporován. Použij formulář Externí kapitál se zvoleným hotovostním účtem.',
   )
 }
 
 export async function deleteCashflow(id: string) {
-  // Mazání externího toku by muselo atomicky vrátit i hotovost a snapshot.
-  // Proto přímé mazání externích pohybů zakazujeme a používáme opačný opravný pohyb.
   const { data, error } = await supabase
     .from('cashflows')
     .select('is_external')
