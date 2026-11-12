@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   createInvestmentIncome,
+  getIncomeCashAccounts,
   getIncomeInstruments,
+  type IncomeCashAccount,
   type IncomeInstrument,
 } from '../services/investmentIncome'
 import type {
@@ -19,7 +21,8 @@ function localDate() {
 
 function parseNumber(value: string) {
   const normalized = value.replace(/\s/g, '').replace(',', '.')
-  return normalized === '' ? 0 : Number(normalized)
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 function typeLabel(type: InvestmentIncomeEntryType) {
@@ -28,59 +31,78 @@ function typeLabel(type: InvestmentIncomeEntryType) {
   return 'Úrok'
 }
 
-export default function InvestmentIncomeForm({
-  onSaved,
-}: {
-  onSaved?: () => void
-}) {
+function accountLabel(account: IncomeCashAccount) {
+  return `${account.name}${account.ticker ? ` · ${account.ticker}` : ''} · ${account.currency}`
+}
+
+export default function InvestmentIncomeForm({ onSaved }: { onSaved?: () => void }) {
   const [instruments, setInstruments] = useState<IncomeInstrument[]>([])
+  const [cashAccounts, setCashAccounts] = useState<IncomeCashAccount[]>([])
   const [expanded, setExpanded] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [form, setForm] = useState<InvestmentIncomeInput>({
     instrumentId: '',
+    cashInstrumentId: '',
     transactionDate: localDate(),
     transactionType: 'DIVIDEND',
-    amountCzk: 0,
+    amountNative: 0,
     currency: 'CZK',
     fxRate: 1,
+    taxNative: 0,
+    feeNative: 0,
     note: '',
   })
 
   useEffect(() => {
-    getIncomeInstruments()
-      .then(setInstruments)
+    Promise.all([getIncomeInstruments(), getIncomeCashAccounts()])
+      .then(([loadedInstruments, loadedAccounts]) => {
+        setInstruments(loadedInstruments)
+        setCashAccounts(loadedAccounts)
+      })
       .catch((reason) => {
-        console.error('Načtení instrumentů pro příjem:', reason)
-        setError('Instrumenty se nepodařilo načíst.')
+        console.error('Investiční příjem:', reason)
+        setError('Číselníky pro investiční příjem se nepodařilo načíst.')
       })
   }, [])
 
+  const matchingAccounts = useMemo(
+    () => cashAccounts.filter((account) => account.currency === form.currency),
+    [cashAccounts, form.currency],
+  )
+
+  const netNative = Math.max(0, form.amountNative - form.taxNative - form.feeNative)
+  const netCzk = netNative * form.fxRate
+
   function selectInstrument(instrumentId: string) {
     const instrument = instruments.find((item) => item.id === instrumentId)
+    const currency = instrument?.currency ?? 'CZK'
+    const preferred = cashAccounts.find((account) => account.currency === currency)
+
     setForm((current) => ({
       ...current,
       instrumentId,
-      currency: instrument?.currency ?? 'CZK',
-      fxRate: instrument?.currency === 'CZK' || !instrument ? 1 : current.fxRate,
+      currency,
+      fxRate: currency === 'CZK' ? 1 : current.fxRate,
+      cashInstrumentId: preferred?.id ?? '',
     }))
   }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
-
     try {
       setSaving(true)
       setError('')
       setMessage('')
-      const result = await createInvestmentIncome(form)
-      setMessage(`${typeLabel(result.transactionType)} byla uložena. Hotovost: ${result.cashBalance.toLocaleString('cs-CZ', { style: 'currency', currency: 'CZK' })}.`)
-      setForm((current) => ({ ...current, amountCzk: 0, note: '' }))
+      const result = await createInvestmentIncome(form) as Record<string, unknown> | null
+      const credited = result ? Number(result.netNative ?? netNative) : netNative
+      setMessage(`${typeLabel(form.transactionType)} byla uložena. Na cílový účet bylo připsáno ${credited.toLocaleString('cs-CZ', { maximumFractionDigits: 2 })} ${form.currency}.`)
+      setForm((current) => ({ ...current, amountNative: 0, taxNative: 0, feeNative: 0, note: '' }))
       onSaved?.()
     } catch (reason) {
       console.error('Uložení investičního příjmu:', reason)
-      setError(reason instanceof Error ? reason.message : 'Příjem se nepodařilo uložit.')
+      setError(reason instanceof Error ? reason.message : 'Investiční příjem se nepodařilo uložit.')
     } finally {
       setSaving(false)
     }
@@ -91,9 +113,7 @@ export default function InvestmentIncomeForm({
       <div className="panel-header">
         <div>
           <h2 className="panel-title">Investiční příjem</h2>
-          <div className="panel-subtitle">
-            Dividenda, kupón nebo úrok se zapíše k instrumentu a současně navýší Hotovost CZK a dnešní snapshot.
-          </div>
+          <div className="panel-subtitle">Dividenda, kupón nebo úrok se připíše na vybraný hotovostní účet a současně vstoupí do Total Return.</div>
         </div>
         <button className="button-secondary" type="button" onClick={() => setExpanded((value) => !value)}>
           {expanded ? 'Zavřít formulář' : 'Přidat příjem'}
@@ -102,7 +122,7 @@ export default function InvestmentIncomeForm({
 
       {expanded && (
         <form className="panel-body" onSubmit={submit}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
             <label>
               <span className="form-label">Typ</span>
               <select className="form-control" value={form.transactionType} onChange={(event) => setForm((current) => ({ ...current, transactionType: event.target.value as InvestmentIncomeEntryType }))}>
@@ -113,15 +133,20 @@ export default function InvestmentIncomeForm({
             </label>
 
             <label>
-              <span className="form-label">Instrument</span>
+              <span className="form-label">Zdrojový instrument</span>
               <select className="form-control" required value={form.instrumentId} onChange={(event) => selectInstrument(event.target.value)}>
                 <option value="">Vyberte instrument</option>
-                {instruments.map((instrument) => (
-                  <option key={instrument.id} value={instrument.id}>
-                    {instrument.name}{instrument.ticker ? ` (${instrument.ticker})` : ''}
-                  </option>
-                ))}
+                {instruments.map((instrument) => <option key={instrument.id} value={instrument.id}>{instrument.name}{instrument.ticker ? ` (${instrument.ticker})` : ''}</option>)}
               </select>
+            </label>
+
+            <label>
+              <span className="form-label">Připsat na účet</span>
+              <select className="form-control" required value={form.cashInstrumentId} onChange={(event) => setForm((current) => ({ ...current, cashInstrumentId: event.target.value }))}>
+                <option value="">Vyberte účet</option>
+                {matchingAccounts.map((account) => <option key={account.id} value={account.id}>{accountLabel(account)}</option>)}
+              </select>
+              {form.currency && matchingAccounts.length === 0 && <div style={{ marginTop: '4px', color: '#8b4444', fontSize: '10px' }}>Pro měnu {form.currency} není evidovaný hotovostní účet.</div>}
             </label>
 
             <label>
@@ -130,19 +155,40 @@ export default function InvestmentIncomeForm({
             </label>
 
             <label>
-              <span className="form-label">Čistá přijatá částka v CZK</span>
-              <input className="form-control" inputMode="decimal" required value={form.amountCzk || ''} onChange={(event) => setForm((current) => ({ ...current, amountCzk: parseNumber(event.target.value) }))} placeholder="2500" />
+              <span className="form-label">Měna</span>
+              <input className="form-control" value={form.currency} readOnly />
             </label>
 
             <label>
-              <span className="form-label">Měna zdroje</span>
-              <input className="form-control" maxLength={3} value={form.currency} onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value.toUpperCase() }))} />
+              <span className="form-label">Hrubá částka ({form.currency})</span>
+              <input className="form-control" inputMode="decimal" required value={form.amountNative || ''} onChange={(event) => setForm((current) => ({ ...current, amountNative: parseNumber(event.target.value) }))} />
             </label>
 
             <label>
-              <span className="form-label">FX kurz CZK / měna</span>
+              <span className="form-label">Daň ({form.currency})</span>
+              <input className="form-control" inputMode="decimal" value={form.taxNative || ''} onChange={(event) => setForm((current) => ({ ...current, taxNative: parseNumber(event.target.value) }))} />
+            </label>
+
+            <label>
+              <span className="form-label">Poplatek ({form.currency})</span>
+              <input className="form-control" inputMode="decimal" value={form.feeNative || ''} onChange={(event) => setForm((current) => ({ ...current, feeNative: parseNumber(event.target.value) }))} />
+            </label>
+
+            <label>
+              <span className="form-label">FX kurz do CZK</span>
               <input className="form-control" inputMode="decimal" required value={form.fxRate || ''} onChange={(event) => setForm((current) => ({ ...current, fxRate: parseNumber(event.target.value) }))} />
             </label>
+          </div>
+
+          <div style={{ marginTop: '12px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px' }}>
+            <div className="kpi-card">
+              <div className="kpi-label">Čistý příjem</div>
+              <div className="kpi-value">{netNative.toLocaleString('cs-CZ', { maximumFractionDigits: 2 })} {form.currency}</div>
+            </div>
+            <div className="kpi-card">
+              <div className="kpi-label">Čistý příjem v CZK</div>
+              <div className="kpi-value positive">{netCzk.toLocaleString('cs-CZ', { style: 'currency', currency: 'CZK', maximumFractionDigits: 0 })}</div>
+            </div>
           </div>
 
           <div style={{ marginTop: '12px' }}>
@@ -152,8 +198,12 @@ export default function InvestmentIncomeForm({
             </label>
           </div>
 
+          <div style={{ marginTop: '10px', color: 'var(--text-muted)', fontSize: '10px', lineHeight: 1.5 }}>
+            Total Return používá čistý příjem po dani a poplatku. U USD/EUR se hotovost připíše v původní měně a její korunová hodnota se dále automaticky přeceňuje podle FX.
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-            <button className="button-primary" type="submit" disabled={saving}>
+            <button className="button-primary" type="submit" disabled={saving || !form.cashInstrumentId}>
               {saving ? 'Ukládám...' : `Uložit: ${typeLabel(form.transactionType)}`}
             </button>
           </div>

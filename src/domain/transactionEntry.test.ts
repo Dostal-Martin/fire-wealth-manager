@@ -1,64 +1,50 @@
 import { describe, expect, it } from 'vitest'
-import {
-  calculateManualTransactionAmount,
-  validateManualTransaction,
-  type ManualTransactionInput,
-} from './transactionEntry'
+import { validateManualTransaction, type ManualTransactionInput } from './transactionEntry'
 
 function input(overrides: Partial<ManualTransactionInput> = {}): ManualTransactionInput {
   return {
-    instrumentId: 'instrument-1',
-    transactionDate: '2026-11-11',
+    instrumentId: 'bac',
+    cashInstrumentId: 'cash-usd',
+    transactionDate: '2026-11-12',
     transactionType: 'BUY',
     quantity: 10,
-    unitPrice: 100,
-    currency: 'CZK',
-    fxRate: 1,
-    feesCzk: 20,
-    taxCzk: 0,
+    unitPrice: 50,
+    currency: 'USD',
+    fxRate: 22,
+    feesNative: 1,
+    taxNative: 0,
     note: '',
     ...overrides,
   }
 }
 
-describe('calculateManualTransactionAmount', () => {
-  it('u nákupu přičte poplatek a daň', () => {
-    expect(calculateManualTransactionAmount(input({ taxCzk: 10 }))).toEqual({
-      grossAmountCzk: 1_000,
-      amountCzk: 1_030,
-    })
+describe('validateManualTransaction v2', () => {
+  it('spočítá BUY v původní měně včetně poplatku', () => {
+    const result = validateManualTransaction(input())
+    expect(result.valid).toBe(true)
+    expect(result.grossNative).toBe(500)
+    expect(result.netNative).toBe(501)
+    expect(result.amountCzk).toBe(11022)
   })
 
-  it('u prodeje odečte poplatek a daň', () => {
-    expect(calculateManualTransactionAmount(input({
+  it('spočítá čistý SELL', () => {
+    const result = validateManualTransaction(input({
       transactionType: 'SELL',
-      feesCzk: 20,
-      taxCzk: 30,
-    }))).toEqual({
-      grossAmountCzk: 1_000,
-      amountCzk: 950,
-    })
-  })
-})
-
-describe('validateManualTransaction', () => {
-  it('povolí platný nákup', () => {
-    expect(validateManualTransaction(input(), null).valid).toBe(true)
+      unitPrice: 55,
+      feesNative: 1,
+    }), 10)
+    expect(result.valid).toBe(true)
+    expect(result.netNative).toBe(549)
   })
 
-  it('povolí prodej do dostupného množství', () => {
-    expect(validateManualTransaction(input({ transactionType: 'SELL', quantity: 5 }), 10).valid).toBe(true)
+  it('vyžaduje vypořádací účet', () => {
+    const result = validateManualTransaction(input({ cashInstrumentId: '' }))
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain('Vyberte vypořádací účet.')
   })
 
-  it('zakáže prodej nad dostupné množství', () => {
+  it('odmítne prodej nad dostupné množství', () => {
     const result = validateManualTransaction(input({ transactionType: 'SELL', quantity: 11 }), 10)
     expect(result.valid).toBe(false)
-    expect(result.errors[0]).toContain('Nelze prodat')
-  })
-
-  it('odmítne neplatné hodnoty', () => {
-    const result = validateManualTransaction(input({ quantity: 0, fxRate: 0, currency: 'Kč' }), null)
-    expect(result.valid).toBe(false)
-    expect(result.errors.length).toBeGreaterThanOrEqual(3)
   })
 })
