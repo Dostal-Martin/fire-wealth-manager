@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react'
-
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   CartesianGrid,
   Legend,
@@ -17,1042 +11,314 @@ import {
   YAxis,
 } from 'recharts'
 
+import DecimalInput from '../components/DecimalInput'
+import { calculateAccumulation, formatAge } from '../domain/fireCalculations'
 import {
-  calculateAccumulation,
-  calculateRent,
-  formatAge,
-  type RentPoint,
-} from '../domain/fireCalculations'
-
+  calculateFundingRatio,
+  calculateRequiredStartingCapital,
+  calculateRetirementProjection,
+  type FireTargetMode,
+  type RetirementEvent,
+} from '../domain/retirementPlan'
+import { getCurrentNetWorth } from '../services/fireSettings'
 import {
-  getCurrentNetWorth,
-  getFireSettings,
-  saveFireSettings,
-  type FireSettingsInput,
-} from '../services/fireSettings'
+  createRetirementEvent,
+  deleteRetirementEvent,
+  getRetirementScenarios,
+  saveRetirementScenario,
+  type RetirementScenario,
+} from '../services/retirementPlan'
 
-type FireTab =
-  | 'accumulation'
-  | 'rent'
+type FireTab = 'accumulation' | 'rent'
+type Tone = 'default' | 'positive' | 'negative'
 
-type Tone =
-  | 'default'
-  | 'positive'
-  | 'negative'
-
-function parseNumber(
-  value: string
-) {
-  const normalized =
-    value
-      .replace(/\s/g, '')
-      .replace(',', '.')
-
-  const number =
-    Number(normalized)
-
-  return Number.isFinite(number)
-    ? number
-    : 0
+type EventDraft = {
+  ageYears: number
+  ageMonths: number
+  amountCzk: number
+  description: string
+  inflationIndexed: boolean
 }
 
-function formatMoney(
-  value: number
-) {
-  return new Intl.NumberFormat(
-    'cs-CZ',
-    {
-      style: 'currency',
-      currency: 'CZK',
+function formatMoney(value: number) {
+  return new Intl.NumberFormat('cs-CZ', {
+    style: 'currency',
+    currency: 'CZK',
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+function formatCompactMoney(value: number) {
+  if (Math.abs(value) >= 1_000_000) {
+    return `${(value / 1_000_000).toLocaleString('cs-CZ', {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 2,
+    })} mil. Kč`
+  }
+  if (Math.abs(value) >= 1_000) {
+    return `${(value / 1_000).toLocaleString('cs-CZ', {
       maximumFractionDigits: 0,
-    }
-  ).format(value)
-}
-
-function formatCompactMoney(
-  value: number
-) {
-  if (
-    Math.abs(value) >=
-    1_000_000
-  ) {
-    return `${(
-      value / 1_000_000
-    ).toLocaleString(
-      'cs-CZ',
-      {
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 2,
-      }
-    )} mil. Kč`
+    })} tis. Kč`
   }
-
-  if (
-    Math.abs(value) >=
-    1_000
-  ) {
-    return `${(
-      value / 1_000
-    ).toLocaleString(
-      'cs-CZ',
-      {
-        maximumFractionDigits: 0,
-      }
-    )} tis. Kč`
-  }
-
   return formatMoney(value)
 }
 
-function formatPercent(
-  value: number,
-  digits = 1
-) {
-  if (
-    !Number.isFinite(value)
-  ) {
-    return '—'
-  }
-
-  return `${value.toLocaleString(
-    'cs-CZ',
-    {
-      minimumFractionDigits:
-        digits,
-      maximumFractionDigits:
-        digits,
-    }
-  )} %`
+function formatPercent(value: number | null, digits = 1) {
+  if (value === null || !Number.isFinite(value)) return '—'
+  return `${(value * 100).toLocaleString('cs-CZ', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })} %`
 }
 
-function formatDate(
-  value: Date
-) {
-  return value.toLocaleDateString(
-    'cs-CZ',
-    {
-      month: 'long',
-      year: 'numeric',
-    }
-  )
+function formatDate(value: Date) {
+  return value.toLocaleDateString('cs-CZ', { month: 'long', year: 'numeric' })
+}
+
+function targetModeLabel(mode: FireTargetMode) {
+  if (mode === 'MANUAL') return 'Ruční cíl'
+  if (mode === 'SWR') return 'Výdaje + SWR'
+  return 'Rentový model'
+}
+
+function ageLabel(years: number, months: number) {
+  return `${years} let${months ? ` ${months} měs.` : ''}`
+}
+
+function retirementTarget(scenario: RetirementScenario) {
+  if (scenario.targetMode === 'MANUAL') return scenario.manualFireTargetCzk
+  if (scenario.targetMode === 'SWR') {
+    return scenario.targetSwr > 0 ? scenario.annualSpendingCzk / scenario.targetSwr : 0
+  }
+  return calculateRequiredStartingCapital(scenario)
 }
 
 export default function Fire() {
-  const [
-    activeTab,
-    setActiveTab,
-  ] =
-    useState<FireTab>(
-      'accumulation'
-    )
+  const [activeTab, setActiveTab] = useState<FireTab>('accumulation')
+  const [scenarios, setScenarios] = useState<RetirementScenario[]>([])
+  const [scenario, setScenario] = useState<RetirementScenario | null>(null)
+  const [currentNetWorth, setCurrentNetWorth] = useState(0)
+  const [snapshotDate, setSnapshotDate] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [eventDraft, setEventDraft] = useState<EventDraft>({
+    ageYears: 60,
+    ageMonths: 0,
+    amountCzk: 500_000,
+    description: '',
+    inflationIndexed: true,
+  })
 
-  const [
-    loading,
-    setLoading,
-  ] =
-    useState(true)
-
-  const [
-    saving,
-    setSaving,
-  ] =
-    useState(false)
-
-  const [
-    message,
-    setMessage,
-  ] =
-    useState('')
-
-  const [
-    snapshotDate,
-    setSnapshotDate,
-  ] =
-    useState('')
-
-  const [
-    currentNetWorth,
-    setCurrentNetWorth,
-  ] =
-    useState(0)
-
-  const [
-    currentAgeYears,
-    setCurrentAgeYears,
-  ] =
-    useState('35')
-
-  const [
-    currentAgeMonths,
-    setCurrentAgeMonths,
-  ] =
-    useState('0')
-
-  const [
-    annualExpenses,
-    setAnnualExpenses,
-  ] =
-    useState('1320000')
-
-  const [
-    withdrawalRate,
-    setWithdrawalRate,
-  ] =
-    useState('4')
-
-  const [
-    fireTarget,
-    setFireTarget,
-  ] =
-    useState('25000000')
-
-  const [
-    monthlyContribution,
-    setMonthlyContribution,
-  ] =
-    useState('80000')
-
-  const [
-    expectedReturn,
-    setExpectedReturn,
-  ] =
-    useState('7')
-
-  const [
-    inflationRate,
-    setInflationRate,
-  ] =
-    useState('2.5')
-
-  const [
-    rentStartAgeYears,
-    setRentStartAgeYears,
-  ] =
-    useState('45')
-
-  const [
-    rentStartAgeMonths,
-    setRentStartAgeMonths,
-  ] =
-    useState('0')
-
-  const [
-    rentStartCapital,
-    setRentStartCapital,
-  ] =
-    useState('25000000')
-
-  const [
-    monthlyRent,
-    setMonthlyRent,
-  ] =
-    useState('100000')
-
-  const [
-    rentReturnRate,
-    setRentReturnRate,
-  ] =
-    useState('5')
-
-  const [
-    rentInflationRate,
-    setRentInflationRate,
-  ] =
-    useState('2.5')
-
-  const [
-    rentYears,
-    setRentYears,
-  ] =
-    useState('50')
-
-  const [
-    statePensionAge,
-    setStatePensionAge,
-  ] =
-    useState('65')
-
-  const [
-    statePensionAmount,
-    setStatePensionAmount,
-  ] =
-    useState('20000')
-
-  const [
-    rentIndexation,
-    setRentIndexation,
-  ] =
-    useState(true)
-
-  const [
-    rentDynamic,
-    setRentDynamic,
-  ] =
-    useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      try {
-        setLoading(true)
-        setMessage('')
-
-        const [
-          settings,
-          netWorth,
-        ] =
-          await Promise.all([
-            getFireSettings(),
-            getCurrentNetWorth(),
-          ])
-
-        if (cancelled) {
-          return
-        }
-
-        setCurrentNetWorth(
-          netWorth.value
-        )
-
-        setSnapshotDate(
-          netWorth.date
-        )
-
-        setCurrentAgeYears(
-          String(
-            settings
-              .current_age_years
-          )
-        )
-
-        setCurrentAgeMonths(
-          String(
-            settings
-              .current_age_months
-          )
-        )
-
-        setAnnualExpenses(
-          String(
-            settings
-              .annual_expenses
-          )
-        )
-
-        setWithdrawalRate(
-          String(
-            settings
-              .withdrawal_rate *
-              100
-          )
-        )
-
-        setFireTarget(
-          String(
-            settings
-              .target_fire_number
-          )
-        )
-
-        setMonthlyContribution(
-          String(
-            settings
-              .monthly_contribution
-          )
-        )
-
-        setExpectedReturn(
-          String(
-            settings
-              .expected_return *
-              100
-          )
-        )
-
-        setInflationRate(
-          String(
-            settings
-              .inflation_rate *
-              100
-          )
-        )
-
-        setRentStartAgeYears(
-          String(
-            settings
-              .rent_start_age_years
-          )
-        )
-
-        setRentStartAgeMonths(
-          String(
-            settings
-              .rent_start_age_months
-          )
-        )
-
-        setRentStartCapital(
-          String(
-            settings
-              .rent_start_capital
-          )
-        )
-
-        setMonthlyRent(
-          String(
-            settings
-              .monthly_rent
-          )
-        )
-
-        setRentReturnRate(
-          String(
-            settings
-              .rent_return_rate *
-              100
-          )
-        )
-
-        setRentInflationRate(
-          String(
-            settings
-              .rent_inflation_rate *
-              100
-          )
-        )
-
-        setRentYears(
-          String(
-            settings
-              .rent_years
-          )
-        )
-
-        setStatePensionAge(
-          String(
-            settings
-              .state_pension_age
-          )
-        )
-
-        setStatePensionAmount(
-          String(
-            settings
-              .state_pension_amount
-          )
-        )
-
-        setRentIndexation(
-          settings
-            .rent_indexation
-        )
-
-        setRentDynamic(
-          settings
-            .rent_dynamic
-        )
-      } catch (error) {
-        console.error(
-          'FIRE:',
-          error
-        )
-
-        if (!cancelled) {
-          setMessage(
-            'FIRE nastavení se nepodařilo načíst.'
-          )
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
+  async function load(preferredScenarioId?: string) {
+    try {
+      setLoading(true)
+      setError('')
+      const [loadedScenarios, netWorth] = await Promise.all([
+        getRetirementScenarios(),
+        getCurrentNetWorth(),
+      ])
+      setScenarios(loadedScenarios)
+      setCurrentNetWorth(netWorth.value)
+      setSnapshotDate(netWorth.date)
+      setScenario((current) => {
+        const preferred = loadedScenarios.find((item) => item.id === preferredScenarioId)
+        const retained = loadedScenarios.find((item) => item.id === current?.id)
+        return preferred ?? retained ?? loadedScenarios.find((item) => item.isActive) ?? loadedScenarios[0] ?? null
+      })
+    } catch (reason) {
+      console.error('FIRE v1.3:', reason)
+      setError(reason instanceof Error ? reason.message : 'FIRE plán se nepodařilo načíst.')
+    } finally {
+      setLoading(false)
     }
+  }
 
-    load()
+  useEffect(() => { void load() }, [])
 
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const requiredCapital = useMemo(() => {
+    if (!scenario) return 0
+    try { return calculateRequiredStartingCapital({ ...scenario, nominalReturnRate: scenario.retirementReturnRate }) }
+    catch { return 0 }
+  }, [scenario])
 
-  const values =
-    useMemo(
-      () => ({
-        currentAgeYears:
-          Math.max(
-            Math.floor(
-              parseNumber(
-                currentAgeYears
-              )
-            ),
-            0
-          ),
+  const activeTarget = useMemo(() => scenario ? retirementTarget(scenario) : 0, [scenario])
 
-        currentAgeMonths:
-          Math.min(
-            Math.max(
-              Math.floor(
-                parseNumber(
-                  currentAgeMonths
-                )
-              ),
-              0
-            ),
-            11
-          ),
+  const fundingRatio = useMemo(
+    () => calculateFundingRatio(currentNetWorth, activeTarget),
+    [currentNetWorth, activeTarget],
+  )
 
-        annualExpenses:
-          Math.max(
-            parseNumber(
-              annualExpenses
-            ),
-            0
-          ),
+  const accumulation = useMemo(() => {
+    if (!scenario) return null
+    return calculateAccumulation({
+      startCapital: currentNetWorth,
+      monthlyContribution: scenario.monthlyContributionCzk,
+      targetCapital: activeTarget,
+      nominalReturn: scenario.accumulationReturnRate,
+      inflation: scenario.inflationRate,
+      currentAgeMonths: scenario.currentAgeYears * 12 + scenario.currentAgeMonths,
+    })
+  }, [scenario, currentNetWorth, activeTarget])
 
-        withdrawalRate:
-          parseNumber(
-            withdrawalRate
-          ) / 100,
+  const retirementProjection = useMemo(() => {
+    if (!scenario) return null
+    try { return calculateRetirementProjection(requiredCapital, { ...scenario, nominalReturnRate: scenario.retirementReturnRate }) }
+    catch { return null }
+  }, [scenario, requiredCapital])
 
-        fireTarget:
-          Math.max(
-            parseNumber(
-              fireTarget
-            ),
-            0
-          ),
+  const currentCapitalProjection = useMemo(() => {
+    if (!scenario) return null
+    try { return calculateRetirementProjection(currentNetWorth, { ...scenario, nominalReturnRate: scenario.retirementReturnRate }) }
+    catch { return null }
+  }, [scenario, currentNetWorth])
 
-        monthlyContribution:
-          Math.max(
-            parseNumber(
-              monthlyContribution
-            ),
-            0
-          ),
+  const retirementChart = useMemo(() => {
+    if (!retirementProjection) return []
+    return retirementProjection.months
+      .filter((row) => row.monthIndex % 12 === 11 || row.monthIndex === retirementProjection.months.length - 1)
+      .map((row) => ({
+        age: `${row.ageYears} let${row.ageMonths ? ` ${row.ageMonths} měs.` : ''}`,
+        capital: Math.max(0, row.closingCapitalCzk),
+        withdrawal: row.portfolioWithdrawalCzk,
+        pension: row.pensionIncomeCzk,
+        event: row.eventWithdrawalCzk,
+      }))
+  }, [retirementProjection])
 
-        expectedReturn:
-          parseNumber(
-            expectedReturn
-          ) / 100,
-
-        inflationRate:
-          parseNumber(
-            inflationRate
-          ) / 100,
-
-        rentStartAgeYears:
-          Math.max(
-            Math.floor(
-              parseNumber(
-                rentStartAgeYears
-              )
-            ),
-            0
-          ),
-
-        rentStartAgeMonths:
-          Math.min(
-            Math.max(
-              Math.floor(
-                parseNumber(
-                  rentStartAgeMonths
-                )
-              ),
-              0
-            ),
-            11
-          ),
-
-        rentStartCapital:
-          Math.max(
-            parseNumber(
-              rentStartCapital
-            ),
-            0
-          ),
-
-        monthlyRent:
-          Math.max(
-            parseNumber(
-              monthlyRent
-            ),
-            0
-          ),
-
-        rentReturnRate:
-          parseNumber(
-            rentReturnRate
-          ) / 100,
-
-        rentInflationRate:
-          parseNumber(
-            rentInflationRate
-          ) / 100,
-
-        rentYears:
-          Math.max(
-            parseNumber(
-              rentYears
-            ),
-            1
-          ),
-
-        statePensionAge:
-          Math.max(
-            parseNumber(
-              statePensionAge
-            ),
-            0
-          ),
-
-        statePensionAmount:
-          Math.max(
-            parseNumber(
-              statePensionAmount
-            ),
-            0
-          ),
-      }),
-      [
-        currentAgeYears,
-        currentAgeMonths,
-        annualExpenses,
-        withdrawalRate,
-        fireTarget,
-        monthlyContribution,
-        expectedReturn,
-        inflationRate,
-        rentStartAgeYears,
-        rentStartAgeMonths,
-        rentStartCapital,
-        monthlyRent,
-        rentReturnRate,
-        rentInflationRate,
-        rentYears,
-        statePensionAge,
-        statePensionAmount,
-      ]
-    )
-
-  const currentAgeTotalMonths =
-    values.currentAgeYears *
-      12 +
-    values.currentAgeMonths
-
-  const rentStartAgeTotalMonths =
-    values.rentStartAgeYears *
-      12 +
-    values.rentStartAgeMonths
-
-  const accumulation =
-    useMemo(
-      () =>
-        calculateAccumulation({
-          startCapital:
-            currentNetWorth,
-
-          monthlyContribution:
-            values
-              .monthlyContribution,
-
-          targetCapital:
-            values.fireTarget,
-
-          nominalReturn:
-            values
-              .expectedReturn,
-
-          inflation:
-            values
-              .inflationRate,
-
-          currentAgeMonths:
-            currentAgeTotalMonths,
-        }),
-      [
-        currentNetWorth,
-        values
-          .monthlyContribution,
-        values.fireTarget,
-        values
-          .expectedReturn,
-        values
-          .inflationRate,
-        currentAgeTotalMonths,
-      ]
-    )
-
-  const rentProjection =
-    useMemo(
-      () =>
-        calculateRent({
-          startCapital:
-            values
-              .rentStartCapital,
-
-          startAgeMonths:
-            rentStartAgeTotalMonths,
-
-          monthlyRent:
-            values
-              .monthlyRent,
-
-          nominalReturn:
-            values
-              .rentReturnRate,
-
-          inflation:
-            values
-              .rentInflationRate,
-
-          years:
-            values.rentYears,
-
-          pensionAge:
-            values
-              .statePensionAge,
-
-          pensionAmount:
-            values
-              .statePensionAmount,
-
-          indexation:
-            rentIndexation,
-
-          dynamic:
-            rentDynamic,
-        }),
-      [
-        values
-          .rentStartCapital,
-        rentStartAgeTotalMonths,
-        values
-          .monthlyRent,
-        values
-          .rentReturnRate,
-        values
-          .rentInflationRate,
-        values.rentYears,
-        values
-          .statePensionAge,
-        values
-          .statePensionAmount,
-        rentIndexation,
-        rentDynamic,
-      ]
-    )
-
-  const fireProgress =
-    values.fireTarget > 0
-      ? (
-          currentNetWorth /
-          values.fireTarget
-        ) * 100
-      : 0
-
-  const missingToTarget =
-    Math.max(
-      values.fireTarget -
-        currentNetWorth,
-      0
-    )
-
-  const modelFireTarget =
-    values.withdrawalRate > 0
-      ? values.annualExpenses /
-        values.withdrawalRate
-      : 0
+  function patch<K extends keyof RetirementScenario>(key: K, value: RetirementScenario[K]) {
+    setScenario((current) => current ? { ...current, [key]: value } : current)
+  }
 
   async function handleSave() {
-    const settings:
-      FireSettingsInput = {
-        annual_expenses:
-          values.annualExpenses,
-
-        withdrawal_rate:
-          values.withdrawalRate,
-
-        target_fire_number:
-          values.fireTarget,
-
-        current_age_years:
-          values.currentAgeYears,
-
-        current_age_months:
-          values.currentAgeMonths,
-
-        monthly_contribution:
-          values.monthlyContribution,
-
-        expected_return:
-          values.expectedReturn,
-
-        inflation_rate:
-          values.inflationRate,
-
-        rent_start_age_years:
-          values.rentStartAgeYears,
-
-        rent_start_age_months:
-          values.rentStartAgeMonths,
-
-        rent_start_capital:
-          values.rentStartCapital,
-
-        monthly_rent:
-          values.monthlyRent,
-
-        rent_return_rate:
-          values.rentReturnRate,
-
-        rent_inflation_rate:
-          values.rentInflationRate,
-
-        rent_years:
-          Math.round(
-            values.rentYears
-          ),
-
-        state_pension_age:
-          Math.round(
-            values.statePensionAge
-          ),
-
-        state_pension_amount:
-          values.statePensionAmount,
-
-        rent_indexation:
-          rentIndexation,
-
-        rent_dynamic:
-          rentDynamic,
-      }
-
+    if (!scenario) return
     try {
       setSaving(true)
       setMessage('')
-
-      await saveFireSettings(
-        settings
-      )
-
-      setMessage(
-        'FIRE nastavení bylo uloženo.'
-      )
-    } catch (error) {
-      console.error(
-        'FIRE save:',
-        error
-      )
-
-      setMessage(
-        'FIRE nastavení se nepodařilo uložit.'
-      )
+      setError('')
+      await saveRetirementScenario(scenario)
+      setMessage('FIRE scénář byl uložen.')
+      await load(scenario.id)
+    } catch (reason) {
+      console.error('FIRE save:', reason)
+      setError(reason instanceof Error ? reason.message : 'FIRE scénář se nepodařilo uložit.')
     } finally {
       setSaving(false)
     }
   }
 
-  if (loading) {
-    return (
-      <div className="page">
-        <div className="loading-box">
-          Načítám FIRE model...
-        </div>
-      </div>
-    )
+  async function handleAddEvent() {
+    if (!scenario || !eventDraft.description.trim() || eventDraft.amountCzk <= 0) return
+    try {
+      setSaving(true)
+      await createRetirementEvent(scenario.id, {
+        ...eventDraft,
+        description: eventDraft.description.trim(),
+        enabled: true,
+      })
+      setEventDraft({
+        ageYears: scenario.startAgeYears,
+        ageMonths: scenario.startAgeMonths,
+        amountCzk: 500_000,
+        description: '',
+        inflationIndexed: true,
+      })
+      await load(scenario.id)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Událost se nepodařilo přidat.')
+    } finally {
+      setSaving(false)
+    }
   }
+
+  async function handleDeleteEvent(event: RetirementEvent) {
+    if (!scenario || !event.id) return
+    try {
+      setSaving(true)
+      await deleteRetirementEvent(scenario.id, event.id)
+      await load(scenario.id)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Událost se nepodařilo odstranit.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) return <div className="page"><div className="loading-box">Načítám FIRE plán...</div></div>
+  if (!scenario) return <div className="page"><div className="error-box">Neexistuje žádný FIRE scénář. Spusť seed nebo vytvoř scénář v databázi.</div></div>
 
   return (
     <div className="page">
       <header className="page-header">
         <div>
-          <h1 className="page-title">
-            FIRE
-          </h1>
-
-          <p className="page-subtitle">
-            Model akumulace kapitálu
-            a dlouhodobého čerpání
-            renty.
-          </p>
+          <h1 className="page-title">FIRE</h1>
+          <p className="page-subtitle">Propojený plán akumulace kapitálu a konfigurovatelného čerpání renty.</p>
         </div>
-
-        <button
-          className="button-primary"
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving
-            ? 'Ukládám...'
-            : 'Uložit nastavení'}
+        <button className="button-primary" onClick={() => void handleSave()} disabled={saving}>
+          {saving ? 'Ukládám...' : 'Uložit scénář'}
         </button>
       </header>
 
-      {message && (
-        <StatusMessage
-          message={message}
-          error={
-            message.includes(
-              'nepodařilo'
-            )
-          }
-        />
-      )}
+      {(message || error) && <StatusMessage message={error || message} error={Boolean(error)} />}
 
-      <TabSelector
-        value={activeTab}
-        onChange={setActiveTab}
-      />
+      <section className="panel" style={{ marginBottom: '16px' }}>
+        <div className="panel-body">
+          <div className="fire-settings-grid">
+            {scenarios.length > 1 && (
+              <Field label="Scénář">
+                <select
+                  className="form-control"
+                  value={scenario.id}
+                  onChange={(event) => setScenario(scenarios.find((item) => item.id === event.target.value) ?? scenario)}
+                >
+                  {scenarios.map((item) => (
+                    <option key={item.id} value={item.id}>{item.name}{item.isActive ? ' · aktivní' : ''}</option>
+                  ))}
+                </select>
+              </Field>
+            )}
+            <Field label="Zdroj cíle">
+              <select className="form-control" value={scenario.targetMode} onChange={(event) => patch('targetMode', event.target.value as FireTargetMode)}>
+                <option value="RETIREMENT_MODEL">Rentový model</option>
+                <option value="SWR">Výdaje + SWR</option>
+                <option value="MANUAL">Ruční cíl</option>
+              </select>
+            </Field>
+          </div>
+        </div>
+      </section>
 
-      {activeTab ===
-        'accumulation' && (
+      <TabSelector value={activeTab} onChange={setActiveTab} />
+
+      {activeTab === 'accumulation' && accumulation && (
         <AccumulationView
-          currentNetWorth={
-            currentNetWorth
-          }
-          snapshotDate={
-            snapshotDate
-          }
-          fireProgress={
-            fireProgress
-          }
-          missingToTarget={
-            missingToTarget
-          }
-          accumulation={
-            accumulation
-          }
-          modelFireTarget={
-            modelFireTarget
-          }
-          values={values}
-          currentAgeYears={
-            currentAgeYears
-          }
-          setCurrentAgeYears={
-            setCurrentAgeYears
-          }
-          currentAgeMonths={
-            currentAgeMonths
-          }
-          setCurrentAgeMonths={
-            setCurrentAgeMonths
-          }
-          monthlyContribution={
-            monthlyContribution
-          }
-          setMonthlyContribution={
-            setMonthlyContribution
-          }
-          fireTarget={
-            fireTarget
-          }
-          setFireTarget={
-            setFireTarget
-          }
-          expectedReturn={
-            expectedReturn
-          }
-          setExpectedReturn={
-            setExpectedReturn
-          }
-          inflationRate={
-            inflationRate
-          }
-          setInflationRate={
-            setInflationRate
-          }
-          annualExpenses={
-            annualExpenses
-          }
-          setAnnualExpenses={
-            setAnnualExpenses
-          }
-          withdrawalRate={
-            withdrawalRate
-          }
-          setWithdrawalRate={
-            setWithdrawalRate
-          }
+          scenario={scenario}
+          patch={patch}
+          currentNetWorth={currentNetWorth}
+          snapshotDate={snapshotDate}
+          activeTarget={activeTarget}
+          requiredCapital={requiredCapital}
+          fundingRatio={fundingRatio}
+          accumulation={accumulation}
         />
       )}
 
-      {activeTab ===
-        'rent' && (
+      {activeTab === 'rent' && retirementProjection && (
         <RentView
-          projection={
-            rentProjection
-          }
-          values={values}
-          rentStartAgeYears={
-            rentStartAgeYears
-          }
-          setRentStartAgeYears={
-            setRentStartAgeYears
-          }
-          rentStartAgeMonths={
-            rentStartAgeMonths
-          }
-          setRentStartAgeMonths={
-            setRentStartAgeMonths
-          }
-          rentStartCapital={
-            rentStartCapital
-          }
-          setRentStartCapital={
-            setRentStartCapital
-          }
-          monthlyRent={
-            monthlyRent
-          }
-          setMonthlyRent={
-            setMonthlyRent
-          }
-          rentReturnRate={
-            rentReturnRate
-          }
-          setRentReturnRate={
-            setRentReturnRate
-          }
-          rentInflationRate={
-            rentInflationRate
-          }
-          setRentInflationRate={
-            setRentInflationRate
-          }
-          rentYears={
-            rentYears
-          }
-          setRentYears={
-            setRentYears
-          }
-          statePensionAge={
-            statePensionAge
-          }
-          setStatePensionAge={
-            setStatePensionAge
-          }
-          statePensionAmount={
-            statePensionAmount
-          }
-          setStatePensionAmount={
-            setStatePensionAmount
-          }
-          rentIndexation={
-            rentIndexation
-          }
-          setRentIndexation={
-            setRentIndexation
-          }
-          rentDynamic={
-            rentDynamic
-          }
-          setRentDynamic={
-            setRentDynamic
-          }
+          scenario={scenario}
+          patch={patch}
+          requiredCapital={requiredCapital}
+          fundingRatio={fundingRatio}
+          currentNetWorth={currentNetWorth}
+          projection={retirementProjection}
+          currentProjection={currentCapitalProjection}
+          chartData={retirementChart}
+          eventDraft={eventDraft}
+          setEventDraft={setEventDraft}
+          onAddEvent={() => void handleAddEvent()}
+          onDeleteEvent={(event) => void handleDeleteEvent(event)}
+          saving={saving}
         />
       )}
     </div>
@@ -1060,504 +326,90 @@ export default function Fire() {
 }
 
 function AccumulationView({
+  scenario,
+  patch,
   currentNetWorth,
   snapshotDate,
-  fireProgress,
-  missingToTarget,
+  activeTarget,
+  requiredCapital,
+  fundingRatio,
   accumulation,
-  modelFireTarget,
-  values,
-  currentAgeYears,
-  setCurrentAgeYears,
-  currentAgeMonths,
-  setCurrentAgeMonths,
-  monthlyContribution,
-  setMonthlyContribution,
-  fireTarget,
-  setFireTarget,
-  expectedReturn,
-  setExpectedReturn,
-  inflationRate,
-  setInflationRate,
-  annualExpenses,
-  setAnnualExpenses,
-  withdrawalRate,
-  setWithdrawalRate,
 }: {
+  scenario: RetirementScenario
+  patch: <K extends keyof RetirementScenario>(key: K, value: RetirementScenario[K]) => void
   currentNetWorth: number
   snapshotDate: string
-  fireProgress: number
-  missingToTarget: number
-
-  accumulation:
-    ReturnType<
-      typeof calculateAccumulation
-    >
-
-  modelFireTarget: number
-
-  values: {
-    fireTarget: number
-    monthlyContribution: number
-    expectedReturn: number
-    inflationRate: number
-  }
-
-  currentAgeYears: string
-
-  setCurrentAgeYears:
-    (value: string) => void
-
-  currentAgeMonths: string
-
-  setCurrentAgeMonths:
-    (value: string) => void
-
-  monthlyContribution:
-    string
-
-  setMonthlyContribution:
-    (value: string) => void
-
-  fireTarget: string
-
-  setFireTarget:
-    (value: string) => void
-
-  expectedReturn:
-    string
-
-  setExpectedReturn:
-    (value: string) => void
-
-  inflationRate:
-    string
-
-  setInflationRate:
-    (value: string) => void
-
-  annualExpenses:
-    string
-
-  setAnnualExpenses:
-    (value: string) => void
-
-  withdrawalRate:
-    string
-
-  setWithdrawalRate:
-    (value: string) => void
+  activeTarget: number
+  requiredCapital: number
+  fundingRatio: number | null
+  accumulation: ReturnType<typeof calculateAccumulation>
 }) {
+  const missing = Math.max(0, activeTarget - currentNetWorth)
+
   return (
     <>
-      <SectionHeading
-        title="Akumulační fáze"
-        description="Odhad vývoje kapitálu do dosažení cílové hodnoty v dnešních cenách."
-      />
+      <SectionHeading title="Akumulační fáze" description="Aktuální investovatelný kapitál směřuje k cíli určenému vybraným scénářem." />
 
       <section className="kpi-grid">
-        <MetricCard
-          label="Aktuální majetek"
-          value={formatCompactMoney(
-            currentNetWorth
-          )}
-          description={
-            snapshotDate
-              ? `Live stav ${snapshotDate}`
-              : formatMoney(
-                  currentNetWorth
-                )
-          }
-        />
-
-        <MetricCard
-          label="FIRE cíl"
-          value={formatCompactMoney(
-            values.fireTarget
-          )}
-          description={formatMoney(
-            values.fireTarget
-          )}
-        />
-
-        <MetricCard
-          label="FIRE progress"
-          value={formatPercent(
-            fireProgress,
-            1
-          )}
-          description={`Chybí ${formatCompactMoney(
-            missingToTarget
-          )}`}
-        />
-
-        <MetricCard
-          label="Odhad dosažení"
-          value={
-            accumulation
-              .targetReached
-              ? formatDate(
-                  accumulation
-                    .estimatedDate
-                )
-              : 'Nedosaženo'
-          }
-          description={
-            accumulation
-              .targetReached
-              ? formatAge(
-                  accumulation
-                    .fireAgeMonths
-                )
-              : 'Více než 100 let'
-          }
-        />
-
-        <MetricCard
-          label="Reálný výnos"
-          value={formatPercent(
-            accumulation
-              .realReturn *
-              100,
-            2
-          )}
-          description="Nominální výnos po inflaci"
-        />
-
-        <MetricCard
-          label="Měsíční investice"
-          value={formatMoney(
-            values
-              .monthlyContribution
-          )}
-          description="Pravidelný externí vklad"
-        />
-
-        <MetricCard
-          label="Vlastní prostředky"
-          value={formatCompactMoney(
-            accumulation
-              .totalContributions
-          )}
-          description="Počáteční kapitál a další vklady"
-        />
-
-        <MetricCard
-          label="Podíl výnosů"
-          value={formatPercent(
-            accumulation
-              .gainShare,
-            1
-          )}
-          description={formatMoney(
-            accumulation
-              .investmentGain
-          )}
-        />
+        <MetricCard label="Aktuální kapitál" value={formatCompactMoney(currentNetWorth)} description={snapshotDate ? `Live stav ${snapshotDate}` : formatMoney(currentNetWorth)} />
+        <MetricCard label={scenario.targetMode === 'RETIREMENT_MODEL' ? 'Rentový cíl' : 'FIRE cíl'} value={formatCompactMoney(activeTarget)} description={targetModeLabel(scenario.targetMode)} />
+        <MetricCard label="Funding ratio" value={formatPercent(fundingRatio, 1)} description={`Chybí ${formatCompactMoney(missing)}`} tone={(fundingRatio ?? 0) >= 1 ? 'positive' : 'default'} />
+        <MetricCard label="Odhad dosažení" value={accumulation.targetReached ? formatDate(accumulation.estimatedDate) : 'Nedosaženo'} description={accumulation.targetReached ? formatAge(accumulation.fireAgeMonths) : 'Více než 100 let'} />
+        <MetricCard label="Cíl rentového modelu" value={formatCompactMoney(requiredCapital)} description={`${formatMoney(scenario.monthlyIncomeTargetCzk)} měsíčně`} />
+        <MetricCard label="Měsíční investice" value={formatMoney(scenario.monthlyContributionCzk)} description="Pravidelný externí vklad" />
+        <MetricCard label="Reálný výnos" value={formatPercent(accumulation.realReturn, 2)} description="Nominální výnos po inflaci" />
+        <MetricCard label="Vlastní prostředky" value={formatCompactMoney(accumulation.totalContributions)} description={formatMoney(accumulation.totalContributions)} />
       </section>
 
       <div className="fire-layout">
         <section className="panel">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">
-                Parametry
-              </h2>
-
-              <div className="panel-subtitle">
-                Modelovací předpoklady
-                akumulační fáze
-              </div>
-            </div>
-          </div>
-
+          <PanelHeader title="Parametry akumulace" subtitle="Všechny hodnoty jsou součástí vybraného scénáře" />
           <div className="panel-body">
             <div className="fire-two-fields">
-              <Field
-                label="Současný věk"
-              >
-                <input
-                  className="form-control"
-                  type="number"
-                  min="18"
-                  max="100"
-                  value={
-                    currentAgeYears
-                  }
-                  onChange={(event) =>
-                    setCurrentAgeYears(
-                      event.target
-                        .value
-                    )
-                  }
-                />
-              </Field>
-
-              <Field
-                label="Měsíce"
-              >
-                <input
-                  className="form-control"
-                  type="number"
-                  min="0"
-                  max="11"
-                  value={
-                    currentAgeMonths
-                  }
-                  onChange={(event) =>
-                    setCurrentAgeMonths(
-                      event.target
-                        .value
-                    )
-                  }
-                />
-              </Field>
+              <IntegerField label="Současný věk" value={scenario.currentAgeYears} onChange={(value) => patch('currentAgeYears', value)} min={0} max={120} />
+              <IntegerField label="Měsíce" value={scenario.currentAgeMonths} onChange={(value) => patch('currentAgeMonths', value)} min={0} max={11} />
             </div>
+            <ReadOnlyField label="Aktuální kapitál" value={formatMoney(currentNetWorth)} />
+            <NumberField label="Měsíční investice" value={scenario.monthlyContributionCzk} onChange={(value) => patch('monthlyContributionCzk', Math.max(0, value))} suffix="Kč" />
 
-            <ReadOnlyField
-              label="Aktuální kapitál"
-              value={formatMoney(
-                currentNetWorth
-              )}
-            />
-
-            <EditableRange
-              label="Měsíční investice"
-              value={
-                monthlyContribution
-              }
-              onChange={
-                setMonthlyContribution
-              }
-              min={0}
-              max={300000}
-              step={5000}
-              suffix="Kč"
-            />
-
-            <EditableRange
-              label="Cílový FIRE kapitál"
-              value={
-                fireTarget
-              }
-              onChange={
-                setFireTarget
-              }
-              min={5000000}
-              max={80000000}
-              step={500000}
-              suffix="Kč"
-            />
+            {scenario.targetMode === 'MANUAL' && (
+              <NumberField label="Ruční FIRE cíl" value={scenario.manualFireTargetCzk} onChange={(value) => patch('manualFireTargetCzk', Math.max(0, value))} suffix="Kč" />
+            )}
+            {scenario.targetMode === 'SWR' && (
+              <>
+                <NumberField label="Roční výdaje" value={scenario.annualSpendingCzk} onChange={(value) => patch('annualSpendingCzk', Math.max(0, value))} suffix="Kč" />
+                <PercentField label="SWR" value={scenario.targetSwr} onChange={(value) => patch('targetSwr', value)} />
+              </>
+            )}
+            {scenario.targetMode === 'RETIREMENT_MODEL' && (
+              <div className="fire-note">
+                Cíl se automaticky počítá z parametrů záložky Simulátor renty.
+                <strong>{formatMoney(requiredCapital)}</strong>
+              </div>
+            )}
 
             <div className="fire-two-fields">
-              <Field
-                label="Výnos p.a."
-              >
-                <PercentInput
-                  value={
-                    expectedReturn
-                  }
-                  onChange={
-                    setExpectedReturn
-                  }
-                />
-              </Field>
-
-              <Field
-                label="Inflace p.a."
-              >
-                <PercentInput
-                  value={
-                    inflationRate
-                  }
-                  onChange={
-                    setInflationRate
-                  }
-                />
-              </Field>
-            </div>
-
-            <div className="fire-two-fields">
-              <Field
-                label="Roční výdaje"
-              >
-                <input
-                  className="form-control"
-                  value={
-                    annualExpenses
-                  }
-                  onChange={(event) =>
-                    setAnnualExpenses(
-                      event.target
-                        .value
-                    )
-                  }
-                  inputMode="decimal"
-                />
-              </Field>
-
-              <Field
-                label="SWR"
-              >
-                <PercentInput
-                  value={
-                    withdrawalRate
-                  }
-                  onChange={
-                    setWithdrawalRate
-                  }
-                />
-              </Field>
-            </div>
-
-            <div className="fire-note">
-              Modelový cíl podle
-              výdajů a SWR
-
-              <strong>
-                {formatMoney(
-                  modelFireTarget
-                )}
-              </strong>
+              <PercentField label="Výnos v akumulaci p.a." value={scenario.accumulationReturnRate} onChange={(value) => patch('accumulationReturnRate', value)} />
+              <PercentField label="Inflace p.a." value={scenario.inflationRate} onChange={(value) => patch('inflationRate', value)} />
             </div>
           </div>
         </section>
 
         <section className="panel">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">
-                Projekce kapitálu
-              </h2>
-
-              <div className="panel-subtitle">
-                Reálné hodnoty po
-                zohlednění inflace
-              </div>
-            </div>
-          </div>
-
+          <PanelHeader title="Projekce kapitálu" subtitle="Reálné hodnoty po zohlednění inflace" />
           <div className="panel-body">
-            <ResponsiveContainer
-              width="100%"
-              height={460}
-            >
-              <LineChart
-                data={
-                  accumulation.points
-                }
-                margin={{
-                  top: 10,
-                  right: 20,
-                  bottom: 5,
-                  left: 5,
-                }}
-              >
-                <CartesianGrid
-                  stroke="#eef0f3"
-                  vertical={false}
-                />
-
-                <XAxis
-                  dataKey="age"
-                  minTickGap={35}
-                  tick={chartTick}
-                  axisLine={{
-                    stroke:
-                      '#e4e7ec',
-                  }}
-                  tickLine={false}
-                />
-
-                <YAxis
-                  width={72}
-                  tickFormatter={(
-                    value
-                  ) =>
-                    `${(
-                      Number(value) /
-                      1000000
-                    ).toLocaleString(
-                      'cs-CZ',
-                      {
-                        maximumFractionDigits:
-                          1,
-                      }
-                    )} mil.`
-                  }
-                  tick={chartTick}
-                  axisLine={false}
-                  tickLine={false}
-                />
-
-                <Tooltip
-                  content={
-                    <AccumulationTooltip />
-                  }
-                />
-
-                <Legend
-                  formatter={(
-                    value
-                  ) =>
-                    value ===
-                    'capital'
-                      ? 'Kapitál'
-                      : 'Vlastní prostředky'
-                  }
-                  wrapperStyle={{
-                    fontSize:
-                      '12px',
-
-                    color:
-                      '#667085',
-                  }}
-                />
-
-                <ReferenceLine
-                  y={
-                    values.fireTarget
-                  }
-                  stroke="#a64b4b"
-                  strokeDasharray="5 5"
-                  label={{
-                    value:
-                      'FIRE cíl',
-
-                    fill:
-                      '#8a5151',
-
-                    fontSize:
-                      11,
-                  }}
-                />
-
-                <Line
-                  type="monotone"
-                  dataKey="capital"
-                  stroke="#53657d"
-                  strokeWidth={2.4}
-                  dot={false}
-                />
-
-                <Line
-                  type="monotone"
-                  dataKey="contributions"
-                  stroke="#aab1bc"
-                  strokeWidth={1.7}
-                  strokeDasharray="5 5"
-                  dot={false}
-                />
+            <ResponsiveContainer width="100%" height={460}>
+              <LineChart data={accumulation.points} margin={{ top: 10, right: 20, bottom: 5, left: 5 }}>
+                <CartesianGrid stroke="#eef0f3" vertical={false} />
+                <XAxis dataKey="age" minTickGap={35} tick={chartTick} axisLine={{ stroke: '#e4e7ec' }} tickLine={false} />
+                <YAxis width={72} tickFormatter={(value) => `${(Number(value) / 1_000_000).toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} mil.`} tick={chartTick} axisLine={false} tickLine={false} />
+                <Tooltip formatter={(value) => formatMoney(Number(value))} />
+                <Legend formatter={(value) => value === 'capital' ? 'Kapitál' : 'Vlastní prostředky'} />
+                <ReferenceLine y={activeTarget} stroke="#a64b4b" strokeDasharray="5 5" label={{ value: 'Cíl', fill: '#8a5151', fontSize: 11 }} />
+                <Line type="monotone" dataKey="capital" stroke="#53657d" strokeWidth={2.4} dot={false} />
+                <Line type="monotone" dataKey="contributions" stroke="#aab1bc" strokeWidth={1.7} strokeDasharray="5 5" dot={false} />
               </LineChart>
             </ResponsiveContainer>
-
-            <div className="fire-chart-note">
-              Projekce používá
-              očekávaný reálný výnos.
-              Skutečný vývoj bude záviset
-              na tržní volatilitě a
-              načasování výnosů.
-            </div>
           </div>
         </section>
       </div>
@@ -1566,990 +418,200 @@ function AccumulationView({
 }
 
 function RentView({
+  scenario,
+  patch,
+  requiredCapital,
+  fundingRatio,
+  currentNetWorth,
   projection,
-  values,
-  rentStartAgeYears,
-  setRentStartAgeYears,
-  rentStartAgeMonths,
-  setRentStartAgeMonths,
-  rentStartCapital,
-  setRentStartCapital,
-  monthlyRent,
-  setMonthlyRent,
-  rentReturnRate,
-  setRentReturnRate,
-  rentInflationRate,
-  setRentInflationRate,
-  rentYears,
-  setRentYears,
-  statePensionAge,
-  setStatePensionAge,
-  statePensionAmount,
-  setStatePensionAmount,
-  rentIndexation,
-  setRentIndexation,
-  rentDynamic,
-  setRentDynamic,
+  currentProjection,
+  chartData,
+  eventDraft,
+  setEventDraft,
+  onAddEvent,
+  onDeleteEvent,
+  saving,
 }: {
-  projection:
-    ReturnType<
-      typeof calculateRent
-    >
-
-  values: {
-    rentStartCapital: number
-    monthlyRent: number
-    rentReturnRate: number
-    rentInflationRate: number
-    rentYears: number
-    statePensionAge: number
-    statePensionAmount: number
-  }
-
-  rentStartAgeYears: string
-  setRentStartAgeYears:
-    (value: string) => void
-
-  rentStartAgeMonths: string
-  setRentStartAgeMonths:
-    (value: string) => void
-
-  rentStartCapital: string
-  setRentStartCapital:
-    (value: string) => void
-
-  monthlyRent: string
-  setMonthlyRent:
-    (value: string) => void
-
-  rentReturnRate: string
-  setRentReturnRate:
-    (value: string) => void
-
-  rentInflationRate: string
-  setRentInflationRate:
-    (value: string) => void
-
-  rentYears: string
-  setRentYears:
-    (value: string) => void
-
-  statePensionAge: string
-  setStatePensionAge:
-    (value: string) => void
-
-  statePensionAmount: string
-  setStatePensionAmount:
-    (value: string) => void
-
-  rentIndexation: boolean
-  setRentIndexation:
-    (value: boolean) => void
-
-  rentDynamic: boolean
-  setRentDynamic:
-    (value: boolean) => void
+  scenario: RetirementScenario
+  patch: <K extends keyof RetirementScenario>(key: K, value: RetirementScenario[K]) => void
+  requiredCapital: number
+  fundingRatio: number | null
+  currentNetWorth: number
+  projection: ReturnType<typeof calculateRetirementProjection>
+  currentProjection: ReturnType<typeof calculateRetirementProjection> | null
+  chartData: Array<{ age: string; capital: number; withdrawal: number; pension: number; event: number }>
+  eventDraft: EventDraft
+  setEventDraft: (value: EventDraft) => void
+  onAddEvent: () => void
+  onDeleteEvent: (event: RetirementEvent) => void
+  saving: boolean
 }) {
-  const resultTone:
-    Tone =
-      projection.sustainable
-        ? 'positive'
-        : 'negative'
-
-  const durationText =
-    projection.sustainable
-      ? `${Math.round(
-          values.rentYears
-        )}+ let`
-      : `${Math.floor(
-          (
-            projection
-              .depletionMonth ??
-            0
-          ) / 12
-        )} let ${
-          (
-            projection
-              .depletionMonth ??
-            0
-          ) % 12
-        } měs.`
+  const durationMonths = (scenario.endAgeYears * 12 + scenario.endAgeMonths) - (scenario.startAgeYears * 12 + scenario.startAgeMonths)
 
   return (
     <>
-      <SectionHeading
-        title="Rentová fáze"
-        description="Simulace dlouhodobého čerpání kapitálu, státního důchodu a inflační indexace."
-      />
+      <SectionHeading title="Rentová fáze" description="Reverzní výpočet potřebného kapitálu a měsíční projekce čerpání do zvoleného věku." />
 
       <section className="kpi-grid">
-        <MetricCard
-          label="Počáteční kapitál"
-          value={formatCompactMoney(
-            values
-              .rentStartCapital
-          )}
-          description={formatMoney(
-            values
-              .rentStartCapital
-          )}
-        />
-
-        <MetricCard
-          label="Požadovaná renta"
-          value={formatMoney(
-            values.monthlyRent
-          )}
-          description="Měsíční částka na začátku"
-        />
-
-        <MetricCard
-          label="Počáteční SWR"
-          value={formatPercent(
-            projection
-              .initialSWR,
-            2
-          )}
-          description="Renta vůči kapitálu"
-        />
-
-        <MetricCard
-          label="Výdrž kapitálu"
-          value={durationText}
-          description={
-            projection.sustainable
-              ? 'Kapitál nebyl během období vyčerpán'
-              : `Vyčerpání ve věku ${formatAge(
-                  projection
-                    .endingAgeMonths
-                )}`
-          }
-          tone={resultTone}
-        />
-
-        <MetricCard
-          label="Konečný kapitál"
-          value={formatCompactMoney(
-            projection
-              .endingCapital
-          )}
-          description={formatMoney(
-            projection
-              .endingCapital
-          )}
-          tone={resultTone}
-        />
-
-        <MetricCard
-          label="Čerpáno z portfolia"
-          value={formatCompactMoney(
-            projection
-              .totalWithdrawn
-          )}
-          description={formatMoney(
-            projection
-              .totalWithdrawn
-          )}
-        />
-
-        <MetricCard
-          label="Státní důchod"
-          value={formatCompactMoney(
-            projection
-              .totalPension
-          )}
-          description="Celkem za modelované období"
-        />
-
-        <MetricCard
-          label="Věk na konci"
-          value={formatAge(
-            projection
-              .endingAgeMonths
-          )}
-          description={`${Math.round(
-            values.rentYears
-          )} let modelovaného období`}
-        />
+        <MetricCard label="Potřebný počáteční kapitál" value={formatCompactMoney(requiredCapital)} description={formatMoney(requiredCapital)} />
+        <MetricCard label="Aktuální kapitál" value={formatCompactMoney(currentNetWorth)} description={formatMoney(currentNetWorth)} />
+        <MetricCard label="Funding ratio" value={formatPercent(fundingRatio, 1)} description={(fundingRatio ?? 0) >= 1 ? 'Plán je kapitálově pokrytý' : `Chybí ${formatCompactMoney(Math.max(0, requiredCapital - currentNetWorth))}`} tone={(fundingRatio ?? 0) >= 1 ? 'positive' : 'default'} />
+        <MetricCard label="Požadovaná renta" value={formatMoney(scenario.monthlyIncomeTargetCzk)} description="Měsíční částka na začátku" />
+        <MetricCard label="Horizont" value={`${Math.floor(durationMonths / 12)} let ${durationMonths % 12} měs.`} description={`${ageLabel(scenario.startAgeYears, scenario.startAgeMonths)} → ${ageLabel(scenario.endAgeYears, scenario.endAgeMonths)}`} />
+        <MetricCard label="Cílový konečný kapitál" value={formatCompactMoney(scenario.terminalCapitalCzk)} description={formatMoney(scenario.terminalCapitalCzk)} />
+        <MetricCard label="Čerpáno z portfolia" value={formatCompactMoney(projection.totalPortfolioWithdrawalsCzk)} description={formatMoney(projection.totalPortfolioWithdrawalsCzk)} />
+        <MetricCard label="Státní důchod" value={formatCompactMoney(projection.totalPensionIncomeCzk)} description="Celkem za období" />
       </section>
 
       <div className="fire-layout">
         <section className="panel">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">
-                Parametry
-              </h2>
-
-              <div className="panel-subtitle">
-                Nastavení rentové fáze
-              </div>
-            </div>
-          </div>
-
+          <PanelHeader title="Parametry renty" subtitle="Změna parametrů okamžitě přepočítá potřebný kapitál" />
           <div className="panel-body">
             <div className="fire-two-fields">
-              <Field
-                label="Věk začátku"
-              >
-                <input
-                  className="form-control"
-                  type="number"
-                  value={
-                    rentStartAgeYears
-                  }
-                  onChange={(event) =>
-                    setRentStartAgeYears(
-                      event.target
-                        .value
-                    )
-                  }
-                />
-              </Field>
-
-              <Field
-                label="Měsíce"
-              >
-                <input
-                  className="form-control"
-                  type="number"
-                  min="0"
-                  max="11"
-                  value={
-                    rentStartAgeMonths
-                  }
-                  onChange={(event) =>
-                    setRentStartAgeMonths(
-                      event.target
-                        .value
-                    )
-                  }
-                />
-              </Field>
+              <IntegerField label="Věk začátku" value={scenario.startAgeYears} onChange={(value) => patch('startAgeYears', value)} min={0} max={120} />
+              <IntegerField label="Měsíce" value={scenario.startAgeMonths} onChange={(value) => patch('startAgeMonths', value)} min={0} max={11} />
             </div>
-
-            <EditableRange
-              label="Počáteční kapitál"
-              value={
-                rentStartCapital
-              }
-              onChange={
-                setRentStartCapital
-              }
-              min={1000000}
-              max={80000000}
-              step={500000}
-              suffix="Kč"
-            />
-
-            <EditableRange
-              label="Měsíční renta"
-              value={
-                monthlyRent
-              }
-              onChange={
-                setMonthlyRent
-              }
-              min={10000}
-              max={300000}
-              step={5000}
-              suffix="Kč"
-            />
-
             <div className="fire-two-fields">
-              <Field
-                label="Výnos p.a."
-              >
-                <PercentInput
-                  value={
-                    rentReturnRate
-                  }
-                  onChange={
-                    setRentReturnRate
-                  }
-                />
-              </Field>
-
-              <Field
-                label="Inflace p.a."
-              >
-                <PercentInput
-                  value={
-                    rentInflationRate
-                  }
-                  onChange={
-                    setRentInflationRate
-                  }
-                />
-              </Field>
+              <IntegerField label="Věk na konci" value={scenario.endAgeYears} onChange={(value) => patch('endAgeYears', value)} min={1} max={130} />
+              <IntegerField label="Měsíce" value={scenario.endAgeMonths} onChange={(value) => patch('endAgeMonths', value)} min={0} max={11} />
             </div>
-
-            <Field
-              label="Délka modelu v letech"
-            >
-              <input
-                className="form-control"
-                type="number"
-                min="1"
-                max="100"
-                value={
-                  rentYears
-                }
-                onChange={(event) =>
-                  setRentYears(
-                    event.target
-                      .value
-                  )
-                }
-              />
-            </Field>
-
-            <div className="fire-subheading">
-              Státní důchod
-            </div>
-
+            <NumberField label="Měsíční renta" value={scenario.monthlyIncomeTargetCzk} onChange={(value) => patch('monthlyIncomeTargetCzk', Math.max(0, value))} suffix="Kč" />
+            <NumberField label="Cílový konečný kapitál" value={scenario.terminalCapitalCzk} onChange={(value) => patch('terminalCapitalCzk', Math.max(0, value))} suffix="Kč" />
             <div className="fire-two-fields">
-              <Field
-                label="Věk nároku"
-              >
-                <input
-                  className="form-control"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={
-                    statePensionAge
-                  }
-                  onChange={(event) =>
-                    setStatePensionAge(
-                      event.target
-                        .value
-                    )
-                  }
-                />
-              </Field>
-
-              <Field
-                label="Měsíční důchod"
-              >
-                <input
-                  className="form-control"
-                  value={
-                    statePensionAmount
-                  }
-                  onChange={(event) =>
-                    setStatePensionAmount(
-                      event.target
-                        .value
-                    )
-                  }
-                  inputMode="decimal"
-                />
-              </Field>
+              <PercentField label="Výnos v rentě p.a." value={scenario.retirementReturnRate} onChange={(value) => patch('retirementReturnRate', value)} />
+              <PercentField label="Inflace p.a." value={scenario.inflationRate} onChange={(value) => patch('inflationRate', value)} />
             </div>
 
-            <CheckboxRow
-              label="Indexovat rentu a důchod inflací"
-              checked={
-                rentIndexation
-              }
-              onChange={
-                setRentIndexation
-              }
-            />
+            <div className="fire-subheading">Státní důchod</div>
+            <div className="fire-two-fields">
+              <IntegerField label="Věk nároku" value={scenario.pensionStartAgeYears} onChange={(value) => patch('pensionStartAgeYears', value)} min={0} max={130} />
+              <IntegerField label="Měsíce" value={scenario.pensionStartAgeMonths} onChange={(value) => patch('pensionStartAgeMonths', value)} min={0} max={11} />
+            </div>
+            <NumberField label="Měsíční důchod" value={scenario.monthlyPensionCzk} onChange={(value) => patch('monthlyPensionCzk', Math.max(0, value))} suffix="Kč" />
 
-            <CheckboxRow
-              label="Dynamické čerpání podle aktuálního kapitálu"
-              checked={
-                rentDynamic
-              }
-              onChange={
-                setRentDynamic
-              }
-            />
+            <label className="fire-checkbox">
+              <input type="checkbox" checked={scenario.incomeIndexed} onChange={(event) => patch('incomeIndexed', event.target.checked)} />
+              <span>Indexovat rentu a důchod inflací</span>
+            </label>
 
             <div className="fire-note">
-              Dynamické čerpání upravuje
-              měsíční výběr podle
-              aktuálního kapitálu a
-              počátečního SWR.
+              Požadovaný startovní kapitál
+              <strong>{formatMoney(requiredCapital)}</strong>
             </div>
           </div>
         </section>
 
         <section className="panel">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">
-                Vývoj kapitálu
-              </h2>
-
-              <div className="panel-subtitle">
-                Nominální hodnota podle věku
-              </div>
-            </div>
-          </div>
-
+          <PanelHeader title="Vývoj kapitálu" subtitle="Projekce začíná vypočteným potřebným kapitálem" />
           <div className="panel-body">
-            <ResponsiveContainer
-              width="100%"
-              height={460}
-            >
-              <LineChart
-                data={
-                  projection.points
-                }
-                margin={{
-                  top: 10,
-                  right: 20,
-                  bottom: 5,
-                  left: 5,
-                }}
-              >
-                <CartesianGrid
-                  stroke="#eef0f3"
-                  vertical={false}
-                />
-
-                <XAxis
-                  dataKey="age"
-                  minTickGap={35}
-                  tick={chartTick}
-                  axisLine={{
-                    stroke:
-                      '#e4e7ec',
-                  }}
-                  tickLine={false}
-                />
-
-                <YAxis
-                  width={72}
-                  tickFormatter={(
-                    value
-                  ) =>
-                    `${(
-                      Number(value) /
-                      1000000
-                    ).toLocaleString(
-                      'cs-CZ',
-                      {
-                        maximumFractionDigits:
-                          1,
-                      }
-                    )} mil.`
-                  }
-                  tick={chartTick}
-                  axisLine={false}
-                  tickLine={false}
-                />
-
-                <Tooltip
-                  content={
-                    <RentTooltip />
-                  }
-                />
-
-                <ReferenceLine
-                  y={0}
-                  stroke="#a64b4b"
-                />
-
-                <Line
-                  type="monotone"
-                  dataKey="capital"
-                  stroke="#53657d"
-                  strokeWidth={2.4}
-                  dot={false}
-                />
+            <ResponsiveContainer width="100%" height={460}>
+              <LineChart data={chartData} margin={{ top: 10, right: 20, bottom: 5, left: 5 }}>
+                <CartesianGrid stroke="#eef0f3" vertical={false} />
+                <XAxis dataKey="age" minTickGap={35} tick={chartTick} axisLine={{ stroke: '#e4e7ec' }} tickLine={false} />
+                <YAxis width={72} tickFormatter={(value) => `${(Number(value) / 1_000_000).toLocaleString('cs-CZ', { maximumFractionDigits: 1 })} mil.`} tick={chartTick} axisLine={false} tickLine={false} />
+                <Tooltip formatter={(value) => formatMoney(Number(value))} />
+                <ReferenceLine y={scenario.terminalCapitalCzk} stroke="#a64b4b" strokeDasharray="5 5" />
+                <Line type="monotone" dataKey="capital" name="Kapitál" stroke="#53657d" strokeWidth={2.4} dot={false} />
               </LineChart>
             </ResponsiveContainer>
-
-            <div
-              className={
-                projection.sustainable
-                  ? 'fire-result fire-result-positive'
-                  : 'fire-result fire-result-negative'
-              }
-            >
-              {projection.sustainable
-                ? `Po ${Math.round(
-                    values.rentYears
-                  )} letech model stále drží ${formatMoney(
-                    projection
-                      .endingCapital
-                  )}.`
-                : `Kapitál se vyčerpá ve věku ${formatAge(
-                    projection
-                      .endingAgeMonths
-                  )}.`}
-            </div>
-
-            <div className="fire-chart-note">
-              Simulace je deterministická.
-              Nezohledňuje kolísání výnosů,
-              daně, poplatky ani sequence-of-returns
-              risk.
+            <div className="fire-result fire-result-positive">
+              Model končí na {formatMoney(projection.finalCapitalCzk)}. Pokud by renta začala dnes z aktuálního kapitálu, model by skončil na {formatMoney(currentProjection?.finalCapitalCzk ?? 0)}.
             </div>
           </div>
         </section>
       </div>
+
+      <section className="panel" style={{ marginTop: '18px' }}>
+        <PanelHeader title="Nepravidelné budoucí výdaje" subtitle="Volitelné výdaje v konkrétním věku, například auto, cestování nebo zdravotní rezerva" />
+        <div className="panel-body">
+          <div className="fire-event-form">
+            <IntegerField label="Věk" value={eventDraft.ageYears} onChange={(value) => setEventDraft({ ...eventDraft, ageYears: value })} min={0} max={130} />
+            <IntegerField label="Měsíce" value={eventDraft.ageMonths} onChange={(value) => setEventDraft({ ...eventDraft, ageMonths: value })} min={0} max={11} />
+            <Field label="Popis"><input className="form-control" value={eventDraft.description} onChange={(event) => setEventDraft({ ...eventDraft, description: event.target.value })} placeholder="Např. nové auto" /></Field>
+            <NumberField label="Částka" value={eventDraft.amountCzk} onChange={(value) => setEventDraft({ ...eventDraft, amountCzk: Math.max(0, value) })} suffix="Kč" />
+            <div className="fire-event-action"><label className="fire-checkbox"><input type="checkbox" checked={eventDraft.inflationIndexed} onChange={(event) => setEventDraft({ ...eventDraft, inflationIndexed: event.target.checked })} /><span>Indexovat</span></label></div>
+            <div className="fire-event-action"><button className="button-primary" type="button" onClick={onAddEvent} disabled={saving || !eventDraft.description.trim() || eventDraft.amountCzk <= 0}>Přidat</button></div>
+          </div>
+
+          {scenario.events.length > 0 && (
+            <div style={{ overflowX: 'auto', marginTop: '16px' }}>
+              <table className="financial-table">
+                <thead><tr><th>Věk</th><th>Popis</th><th className="cell-number">Částka</th><th>Indexace</th><th /></tr></thead>
+                <tbody>{scenario.events.map((event) => (
+                  <tr key={event.id ?? `${event.ageYears}-${event.description}`}>
+                    <td>{ageLabel(event.ageYears, event.ageMonths)}</td>
+                    <td>{event.description}</td>
+                    <td className="cell-number">{formatMoney(event.amountCzk)}</td>
+                    <td>{event.inflationIndexed ? 'Ano' : 'Ne'}</td>
+                    <td className="cell-number"><button type="button" className="button-secondary" onClick={() => onDeleteEvent(event)}>Odstranit</button></td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
     </>
   )
 }
 
-function SectionHeading({
-  title,
-  description,
-}: {
-  title: string
-  description: string
-}) {
-  return (
-    <div className="fire-section-heading">
-      <h2>{title}</h2>
-
-      <p>{description}</p>
-    </div>
-  )
+function SectionHeading({ title, description }: { title: string; description: string }) {
+  return <div className="fire-section-heading"><h2>{title}</h2><p>{description}</p></div>
 }
 
-function MetricCard({
-  label,
-  value,
-  description,
-  tone = 'default',
-}: {
-  label: string
-  value: string
-  description?: string
-  tone?: Tone
-}) {
-  const valueClass =
-    tone === 'positive'
-      ? 'positive'
-      : tone === 'negative'
-        ? 'negative'
-        : ''
-
-  return (
-    <div className="kpi-card">
-      <div className="kpi-label">
-        {label}
-      </div>
-
-      <div
-        className={`kpi-value ${valueClass}`}
-      >
-        {value}
-      </div>
-
-      {description && (
-        <div className="kpi-description">
-          {description}
-        </div>
-      )}
-    </div>
-  )
+function PanelHeader({ title, subtitle }: { title: string; subtitle: string }) {
+  return <div className="panel-header"><div><h2 className="panel-title">{title}</h2><div className="panel-subtitle">{subtitle}</div></div></div>
 }
 
-function TabSelector({
-  value,
-  onChange,
-}: {
-  value: FireTab
-  onChange:
-    (value: FireTab) => void
-}) {
-  return (
-    <div className="fire-tabs">
-      <button
-        className={
-          value ===
-          'accumulation'
-            ? 'fire-tab fire-tab-active'
-            : 'fire-tab'
-        }
-        onClick={() =>
-          onChange(
-            'accumulation'
-          )
-        }
-      >
-        Akumulace FIRE
-      </button>
-
-      <button
-        className={
-          value === 'rent'
-            ? 'fire-tab fire-tab-active'
-            : 'fire-tab'
-        }
-        onClick={() =>
-          onChange('rent')
-        }
-      >
-        Simulátor renty
-      </button>
-    </div>
-  )
+function MetricCard({ label, value, description, tone = 'default' }: { label: string; value: string; description?: string; tone?: Tone }) {
+  const valueClass = tone === 'positive' ? 'positive' : tone === 'negative' ? 'negative' : ''
+  return <div className="kpi-card"><div className="kpi-label">{label}</div><div className={`kpi-value ${valueClass}`}>{value}</div>{description && <div className="kpi-description">{description}</div>}</div>
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string
-  children: ReactNode
-}) {
-  return (
-    <div className="fire-field">
-      <label className="form-label">
-        {label}
-      </label>
-
-      {children}
-    </div>
-  )
+function TabSelector({ value, onChange }: { value: FireTab; onChange: (value: FireTab) => void }) {
+  return <div className="fire-tabs">
+    <button className={value === 'accumulation' ? 'fire-tab fire-tab-active' : 'fire-tab'} onClick={() => onChange('accumulation')}>Akumulace FIRE</button>
+    <button className={value === 'rent' ? 'fire-tab fire-tab-active' : 'fire-tab'} onClick={() => onChange('rent')}>Simulátor renty</button>
+  </div>
 }
 
-function ReadOnlyField({
-  label,
-  value,
-}: {
-  label: string
-  value: string
-}) {
-  return (
-    <Field label={label}>
-      <input
-        className="form-control"
-        value={value}
-        readOnly
-      />
-    </Field>
-  )
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return <div className="fire-field"><label className="form-label">{label}</label>{children}</div>
 }
 
-function PercentInput({
-  value,
-  onChange,
-}: {
-  value: string
-  onChange:
-    (value: string) => void
-}) {
-  return (
-    <div className="fire-input-suffix">
-      <input
-        className="form-control"
-        value={value}
-        onChange={(event) =>
-          onChange(
-            event.target.value
-          )
-        }
-        inputMode="decimal"
-      />
-
-      <span>%</span>
-    </div>
-  )
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return <Field label={label}><input className="form-control" value={value} readOnly /></Field>
 }
 
-function EditableRange({
-  label,
-  value,
-  onChange,
-  min,
-  max,
-  step,
-  suffix,
-}: {
-  label: string
-  value: string
-  onChange:
-    (value: string) => void
-  min: number
-  max: number
-  step: number
-  suffix?: string
-}) {
-  const numericValue =
-    parseNumber(value)
+function IntegerField({ label, value, onChange, min, max }: { label: string; value: number; onChange: (value: number) => void; min: number; max: number }) {
+  const [text, setText] = useState(String(value))
 
-  const rangeValue =
-    Math.min(
-      Math.max(
-        numericValue,
-        min
-      ),
-      max
-    )
+  useEffect(() => setText(String(value)), [value])
 
-  return (
-    <div className="fire-range-field">
-      <label className="form-label">
-        {label}
-      </label>
-
-      <div className="fire-input-suffix">
-        <input
-          className="form-control"
-          value={value}
-          onChange={(event) =>
-            onChange(
-              event.target.value
-            )
-          }
-          inputMode="decimal"
-        />
-
-        {suffix && (
-          <span>{suffix}</span>
-        )}
-      </div>
-
-      <input
-        className="fire-range"
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={rangeValue}
-        onChange={(event) =>
-          onChange(
-            event.target.value
-          )
-        }
-      />
-
-      <div className="fire-range-labels">
-        <span>
-          {formatCompactMoney(
-            min
-          )}
-        </span>
-
-        <span>
-          {formatCompactMoney(
-            max
-          )}
-        </span>
-      </div>
-    </div>
-  )
-}
-
-function CheckboxRow({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string
-  checked: boolean
-  onChange:
-    (value: boolean) => void
-}) {
-  return (
-    <label className="fire-checkbox">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) =>
-          onChange(
-            event.target.checked
-          )
-        }
-      />
-
-      <span>{label}</span>
-    </label>
-  )
-}
-
-function StatusMessage({
-  message,
-  error = false,
-}: {
-  message: string
-  error?: boolean
-}) {
-  return (
-    <div
-      className={
-        error
-          ? 'fire-status fire-status-error'
-          : 'fire-status'
-      }
-    >
-      {message}
-    </div>
-  )
-}
-
-function AccumulationTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean
-  payload?: Array<{
-    dataKey?: string
-    value?: number
-  }>
-  label?: string
-}) {
-  if (
-    !active ||
-    !payload ||
-    payload.length === 0
-  ) {
-    return null
+  function commit() {
+    const parsed = Number(text)
+    if (!Number.isFinite(parsed)) {
+      setText(String(value))
+      return
+    }
+    const bounded = Math.max(min, Math.min(max, Math.floor(parsed)))
+    onChange(bounded)
+    setText(String(bounded))
   }
 
-  const capital =
-    payload.find(
-      (item) =>
-        item.dataKey ===
-        'capital'
-    )?.value
-
-  const contributions =
-    payload.find(
-      (item) =>
-        item.dataKey ===
-        'contributions'
-    )?.value
-
-  return (
-    <ChartTooltip
-      title={`Věk ${label ?? ''}`}
-      rows={[
-        {
-          label: 'Kapitál',
-          value:
-            capital !==
-            undefined
-              ? formatMoney(
-                  Number(
-                    capital
-                  )
-                )
-              : '—',
-        },
-        {
-          label:
-            'Vlastní prostředky',
-          value:
-            contributions !==
-            undefined
-              ? formatMoney(
-                  Number(
-                    contributions
-                  )
-                )
-              : '—',
-        },
-      ]}
-    />
-  )
+  return <Field label={label}><input className="form-control" type="text" inputMode="numeric" value={text} onChange={(event) => { if (/^\d*$/.test(event.target.value)) setText(event.target.value) }} onBlur={commit} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commit() } }} /></Field>
 }
 
-function RentTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean
-  payload?: Array<{
-    payload?: RentPoint
-  }>
-  label?: string
-}) {
-  if (
-    !active ||
-    !payload ||
-    payload.length === 0
-  ) {
-    return null
-  }
-
-  const row =
-    payload[0].payload
-
-  if (!row) {
-    return null
-  }
-
-  return (
-    <ChartTooltip
-      title={`Věk ${label ?? ''}`}
-      rows={[
-        {
-          label: 'Kapitál',
-          value:
-            formatMoney(
-              row.capital
-            ),
-        },
-        {
-          label:
-            'Měsíční čerpání',
-          value:
-            formatMoney(
-              row.monthlyWithdrawal
-            ),
-        },
-        {
-          label:
-            'Měsíční důchod',
-          value:
-            formatMoney(
-              row.pension
-            ),
-        },
-      ]}
-    />
-  )
+function NumberField({ label, value, onChange, suffix, decimals = 2 }: { label: string; value: number; onChange: (value: number) => void; suffix?: string; decimals?: number }) {
+  return <Field label={label}><div className="fire-input-suffix"><DecimalInput value={value} onValueChange={onChange} decimalPlaces={decimals} />{suffix && <span>{suffix}</span>}</div></Field>
 }
 
-function ChartTooltip({
-  title,
-  rows,
-}: {
-  title: string
-  rows: Array<{
-    label: string
-    value: string
-  }>
-}) {
-  return (
-    <div className="fire-tooltip">
-      <div className="fire-tooltip-title">
-        {title}
-      </div>
-
-      {rows.map(
-        (row) => (
-          <div
-            key={row.label}
-            className="fire-tooltip-row"
-          >
-            <span>
-              {row.label}
-            </span>
-
-            <strong>
-              {row.value}
-            </strong>
-          </div>
-        )
-      )}
-    </div>
-  )
+function PercentField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+  return <Field label={label}><div className="fire-input-suffix"><DecimalInput value={value * 100} onValueChange={(percent) => onChange(percent / 100)} decimalPlaces={3} /><span>%</span></div></Field>
 }
 
-const chartTick = {
-  fill: '#98a2b3',
-  fontSize: 11,
+function StatusMessage({ message, error = false }: { message: string; error?: boolean }) {
+  return <div className={error ? 'fire-status fire-status-error' : 'fire-status'}>{message}</div>
 }
+
+const chartTick = { fill: '#98a2b3', fontSize: 11 }

@@ -4302,3 +4302,78 @@ th.cell-number {
 .transactions-detail-scroll::-webkit-scrollbar-thumb:hover {
   background: #667085;
 }
+/* Add to the existing stylesheet containing the FIRE classes. */
+.fire-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 320px));
+  gap: 14px;
+  align-items: end;
+}
+
+.fire-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.fire-two-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.fire-field {
+  min-width: 0;
+}
+
+.fire-field .form-control,
+.fire-input-suffix {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.fire-input-suffix {
+  display: flex;
+  align-items: center;
+}
+
+.fire-input-suffix .form-control {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.fire-event-form {
+  display: grid;
+  grid-template-columns: 110px 100px minmax(260px, 1fr) minmax(170px, 210px) auto auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.fire-event-action {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+}
+
+.fire-event-action .button-primary {
+  min-width: 100px;
+}
+
+@media (max-width: 1100px) {
+  .fire-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .fire-event-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .fire-settings-grid,
+  .fire-two-fields,
+  .fire-event-form {
+    grid-template-columns: 1fr;
+  }
+}
