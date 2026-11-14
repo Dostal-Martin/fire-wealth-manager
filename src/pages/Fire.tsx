@@ -12,6 +12,8 @@ import {
 } from 'recharts'
 
 import DecimalInput from '../components/DecimalInput'
+import RetirementPriceSummary from '../components/RetirementPriceSummary'
+import { calculateRetirementPriceView } from '../domain/retirementPriceView'
 import { calculateAccumulation, formatAge } from '../domain/fireCalculations'
 import {
   calculateFundingRatio,
@@ -144,6 +146,21 @@ export default function Fire() {
   }, [scenario])
 
   const activeTarget = useMemo(() => scenario ? retirementTarget(scenario) : 0, [scenario])
+
+  const retirementPriceView = useMemo(() => {
+    if (!scenario) return null
+
+    return calculateRetirementPriceView({
+      currentAgeYears: scenario.currentAgeYears,
+      currentAgeMonths: scenario.currentAgeMonths,
+      retirementStartAgeYears: scenario.startAgeYears,
+      retirementStartAgeMonths: scenario.startAgeMonths,
+      inflationRate: scenario.inflationRate,
+      fireTargetTodayCzk: activeTarget,
+      monthlyIncomeTodayCzk: scenario.monthlyIncomeTargetCzk,
+      terminalCapitalTodayCzk: scenario.terminalCapitalCzk,
+    })
+  }, [scenario, activeTarget])
 
   const fundingRatio = useMemo(
     () => calculateFundingRatio(currentNetWorth, activeTarget),
@@ -290,6 +307,17 @@ export default function Fire() {
       </section>
 
       <TabSelector value={activeTab} onChange={setActiveTab} />
+
+      {retirementPriceView && (
+        <RetirementPriceSummary
+          fireTargetTodayCzk={retirementPriceView.fireTargetTodayCzk}
+          fireTargetAtRetirementCzk={retirementPriceView.fireTargetAtRetirementCzk}
+          monthlyIncomeTodayCzk={retirementPriceView.monthlyIncomeTodayCzk}
+          monthlyIncomeAtRetirementCzk={retirementPriceView.monthlyIncomeAtRetirementCzk}
+          monthsToRetirement={retirementPriceView.monthsToRetirement}
+          inflationRate={scenario.inflationRate}
+        />
+      )}
 
       {activeTab === 'accumulation' && accumulation && (
         <AccumulationView
