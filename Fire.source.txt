@@ -13,7 +13,9 @@ import {
 
 import DecimalInput from '../components/DecimalInput'
 import RetirementPriceSummary from '../components/RetirementPriceSummary'
+import CoupledFirePlanSummary from '../components/CoupledFirePlanSummary'
 import { calculateRetirementPriceView } from '../domain/retirementPriceView'
+import { calculateCoupledFirePlan } from '../domain/coupledFirePlan'
 import { calculateAccumulation, formatAge } from '../domain/fireCalculations'
 import {
   calculateFundingRatio,
@@ -179,6 +181,29 @@ export default function Fire() {
     })
   }, [scenario, currentNetWorth, activeTarget])
 
+  const coupledPlan = useMemo(() => {
+    if (!scenario) return null
+    try {
+      return calculateCoupledFirePlan({
+        currentCapitalCzk: currentNetWorth,
+        currentAgeYears: scenario.currentAgeYears,
+        currentAgeMonths: scenario.currentAgeMonths,
+        plannedStartAgeYears: scenario.startAgeYears,
+        plannedStartAgeMonths: scenario.startAgeMonths,
+        monthlyContributionCzk: scenario.monthlyContributionCzk,
+        accumulationNominalReturnRate: scenario.accumulationReturnRate,
+        inflationRate: scenario.inflationRate,
+        retirementPlan: {
+          ...scenario,
+          nominalReturnRate: scenario.retirementReturnRate,
+        },
+      })
+    } catch (reason) {
+      console.error('Provázaný FIRE plán:', reason)
+      return null
+    }
+  }, [scenario, currentNetWorth])
+
   const retirementProjection = useMemo(() => {
     if (!scenario) return null
     try { return calculateRetirementProjection(requiredCapital, { ...scenario, nominalReturnRate: scenario.retirementReturnRate }) }
@@ -318,6 +343,8 @@ export default function Fire() {
           inflationRate={scenario.inflationRate}
         />
       )}
+
+      {coupledPlan && <CoupledFirePlanSummary result={coupledPlan} />}
 
       {activeTab === 'accumulation' && accumulation && (
         <AccumulationView

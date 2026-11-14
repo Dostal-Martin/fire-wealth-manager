@@ -12,8 +12,7 @@ import {
 } from 'recharts'
 
 import DecimalInput from '../components/DecimalInput'
-import RetirementPriceSummary from '../components/RetirementPriceSummary'
-import { calculateRetirementPriceView } from '../domain/retirementPriceView'
+import { calculateCoupledFirePlan, type CoupledFirePlanResult } from '../domain/coupledFirePlan'
 import { calculateAccumulation, formatAge } from '../domain/fireCalculations'
 import {
   calculateFundingRatio,
@@ -32,6 +31,7 @@ import {
 } from '../services/retirementPlan'
 
 type FireTab = 'accumulation' | 'rent'
+type PlanningMode = 'EARLIEST_DATE' | 'FIXED_DATE'
 type Tone = 'default' | 'positive' | 'negative'
 
 type EventDraft = {
@@ -97,6 +97,7 @@ function retirementTarget(scenario: RetirementScenario) {
 
 export default function Fire() {
   const [activeTab, setActiveTab] = useState<FireTab>('accumulation')
+  const [planningMode, setPlanningMode] = useState<PlanningMode>('EARLIEST_DATE')
   const [scenarios, setScenarios] = useState<RetirementScenario[]>([])
   const [scenario, setScenario] = useState<RetirementScenario | null>(null)
   const [currentNetWorth, setCurrentNetWorth] = useState(0)
@@ -139,28 +140,60 @@ export default function Fire() {
 
   useEffect(() => { void load() }, [])
 
-  const requiredCapital = useMemo(() => {
-    if (!scenario) return 0
-    try { return calculateRequiredStartingCapital({ ...scenario, nominalReturnRate: scenario.retirementReturnRate }) }
-    catch { return 0 }
-  }, [scenario])
-
-  const activeTarget = useMemo(() => scenario ? retirementTarget(scenario) : 0, [scenario])
-
-  const retirementPriceView = useMemo(() => {
+  const coupledPlan = useMemo(() => {
     if (!scenario) return null
 
-    return calculateRetirementPriceView({
-      currentAgeYears: scenario.currentAgeYears,
-      currentAgeMonths: scenario.currentAgeMonths,
-      retirementStartAgeYears: scenario.startAgeYears,
-      retirementStartAgeMonths: scenario.startAgeMonths,
-      inflationRate: scenario.inflationRate,
-      fireTargetTodayCzk: activeTarget,
-      monthlyIncomeTodayCzk: scenario.monthlyIncomeTargetCzk,
-      terminalCapitalTodayCzk: scenario.terminalCapitalCzk,
-    })
-  }, [scenario, activeTarget])
+    try {
+      return calculateCoupledFirePlan({
+        currentCapitalCzk: currentNetWorth,
+        currentAgeYears: scenario.currentAgeYears,
+        currentAgeMonths: scenario.currentAgeMonths,
+        plannedStartAgeYears: scenario.startAgeYears,
+        plannedStartAgeMonths: scenario.startAgeMonths,
+        monthlyContributionCzk: scenario.monthlyContributionCzk,
+        accumulationNominalReturnRate: scenario.accumulationReturnRate,
+        inflationRate: scenario.inflationRate,
+        retirementPlan: {
+          ...scenario,
+          nominalReturnRate: scenario.retirementReturnRate,
+        },
+      })
+    } catch (reason) {
+      console.error('Provázaný FIRE plán:', reason)
+      return null
+    }
+  }, [scenario, currentNetWorth])
+
+  const effectiveScenario = useMemo(() => {
+    if (!scenario || planningMode !== 'EARLIEST_DATE' || !coupledPlan) return scenario
+    if (
+      coupledPlan.earliestFeasibleAgeYears === null ||
+      coupledPlan.earliestFeasibleAgeMonths === null
+    ) return scenario
+
+    return {
+      ...scenario,
+      startAgeYears: coupledPlan.earliestFeasibleAgeYears,
+      startAgeMonths: coupledPlan.earliestFeasibleAgeMonths,
+    }
+  }, [scenario, planningMode, coupledPlan])
+
+  const requiredCapital = useMemo(() => {
+    if (!effectiveScenario) return 0
+    try {
+      return calculateRequiredStartingCapital({
+        ...effectiveScenario,
+        nominalReturnRate: effectiveScenario.retirementReturnRate,
+      })
+    } catch {
+      return 0
+    }
+  }, [effectiveScenario])
+
+  const activeTarget = useMemo(
+    () => effectiveScenario ? retirementTarget(effectiveScenario) : 0,
+    [effectiveScenario],
+  )
 
   const fundingRatio = useMemo(
     () => calculateFundingRatio(currentNetWorth, activeTarget),
@@ -168,33 +201,50 @@ export default function Fire() {
   )
 
   const accumulation = useMemo(() => {
-    if (!scenario) return null
+    if (!effectiveScenario) return null
     return calculateAccumulation({
       startCapital: currentNetWorth,
-      monthlyContribution: scenario.monthlyContributionCzk,
+      monthlyContribution: effectiveScenario.monthlyContributionCzk,
       targetCapital: activeTarget,
-      nominalReturn: scenario.accumulationReturnRate,
-      inflation: scenario.inflationRate,
-      currentAgeMonths: scenario.currentAgeYears * 12 + scenario.currentAgeMonths,
+      nominalReturn: effectiveScenario.accumulationReturnRate,
+      inflation: effectiveScenario.inflationRate,
+      currentAgeMonths:
+        effectiveScenario.currentAgeYears * 12 + effectiveScenario.currentAgeMonths,
     })
-  }, [scenario, currentNetWorth, activeTarget])
+  }, [effectiveScenario, currentNetWorth, activeTarget])
 
   const retirementProjection = useMemo(() => {
-    if (!scenario) return null
-    try { return calculateRetirementProjection(requiredCapital, { ...scenario, nominalReturnRate: scenario.retirementReturnRate }) }
-    catch { return null }
-  }, [scenario, requiredCapital])
+    if (!effectiveScenario) return null
+    try {
+      return calculateRetirementProjection(requiredCapital, {
+        ...effectiveScenario,
+        nominalReturnRate: effectiveScenario.retirementReturnRate,
+      })
+    } catch {
+      return null
+    }
+  }, [effectiveScenario, requiredCapital])
 
   const currentCapitalProjection = useMemo(() => {
-    if (!scenario) return null
-    try { return calculateRetirementProjection(currentNetWorth, { ...scenario, nominalReturnRate: scenario.retirementReturnRate }) }
-    catch { return null }
-  }, [scenario, currentNetWorth])
+    if (!effectiveScenario) return null
+    try {
+      return calculateRetirementProjection(currentNetWorth, {
+        ...effectiveScenario,
+        nominalReturnRate: effectiveScenario.retirementReturnRate,
+      })
+    } catch {
+      return null
+    }
+  }, [effectiveScenario, currentNetWorth])
 
   const retirementChart = useMemo(() => {
     if (!retirementProjection) return []
     return retirementProjection.months
-      .filter((row) => row.monthIndex % 12 === 11 || row.monthIndex === retirementProjection.months.length - 1)
+      .filter(
+        (row) =>
+          row.monthIndex % 12 === 11 ||
+          row.monthIndex === retirementProjection.months.length - 1,
+      )
       .map((row) => ({
         age: `${row.ageYears} let${row.ageMonths ? ` ${row.ageMonths} měs.` : ''}`,
         capital: Math.max(0, row.closingCapitalCzk),
@@ -306,22 +356,22 @@ export default function Fire() {
         </div>
       </section>
 
-      <TabSelector value={activeTab} onChange={setActiveTab} />
+      <PlanningModeSelector value={planningMode} onChange={setPlanningMode} />
 
-      {retirementPriceView && (
-        <RetirementPriceSummary
-          fireTargetTodayCzk={retirementPriceView.fireTargetTodayCzk}
-          fireTargetAtRetirementCzk={retirementPriceView.fireTargetAtRetirementCzk}
-          monthlyIncomeTodayCzk={retirementPriceView.monthlyIncomeTodayCzk}
-          monthlyIncomeAtRetirementCzk={retirementPriceView.monthlyIncomeAtRetirementCzk}
-          monthsToRetirement={retirementPriceView.monthsToRetirement}
+      {coupledPlan && (
+        <FireDecisionSummary
+          mode={planningMode}
+          result={coupledPlan}
+          desiredIncomeCzk={scenario.monthlyIncomeTargetCzk}
           inflationRate={scenario.inflationRate}
         />
       )}
 
+      <TabSelector value={activeTab} onChange={setActiveTab} />
+
       {activeTab === 'accumulation' && accumulation && (
         <AccumulationView
-          scenario={scenario}
+          scenario={effectiveScenario ?? scenario}
           patch={patch}
           currentNetWorth={currentNetWorth}
           snapshotDate={snapshotDate}
@@ -334,9 +384,10 @@ export default function Fire() {
 
       {activeTab === 'rent' && retirementProjection && (
         <RentView
-          scenario={scenario}
+          scenario={effectiveScenario ?? scenario}
           patch={patch}
           requiredCapital={requiredCapital}
+          lockStartAge={planningMode === 'EARLIEST_DATE'}
           fundingRatio={fundingRatio}
           currentNetWorth={currentNetWorth}
           projection={retirementProjection}
@@ -449,6 +500,7 @@ function RentView({
   scenario,
   patch,
   requiredCapital,
+  lockStartAge,
   fundingRatio,
   currentNetWorth,
   projection,
@@ -463,6 +515,7 @@ function RentView({
   scenario: RetirementScenario
   patch: <K extends keyof RetirementScenario>(key: K, value: RetirementScenario[K]) => void
   requiredCapital: number
+  lockStartAge: boolean
   fundingRatio: number | null
   currentNetWorth: number
   projection: ReturnType<typeof calculateRetirementProjection>
@@ -495,10 +548,17 @@ function RentView({
         <section className="panel">
           <PanelHeader title="Parametry renty" subtitle="Změna parametrů okamžitě přepočítá potřebný kapitál" />
           <div className="panel-body">
-            <div className="fire-two-fields">
-              <IntegerField label="Věk začátku" value={scenario.startAgeYears} onChange={(value) => patch('startAgeYears', value)} min={0} max={120} />
-              <IntegerField label="Měsíce" value={scenario.startAgeMonths} onChange={(value) => patch('startAgeMonths', value)} min={0} max={11} />
-            </div>
+            {lockStartAge ? (
+              <ReadOnlyField
+                label="Vypočtený začátek renty"
+                value={ageLabel(scenario.startAgeYears, scenario.startAgeMonths)}
+              />
+            ) : (
+              <div className="fire-two-fields">
+                <IntegerField label="Věk začátku" value={scenario.startAgeYears} onChange={(value) => patch('startAgeYears', value)} min={0} max={120} />
+                <IntegerField label="Měsíce" value={scenario.startAgeMonths} onChange={(value) => patch('startAgeMonths', value)} min={0} max={11} />
+              </div>
+            )}
             <div className="fire-two-fields">
               <IntegerField label="Věk na konci" value={scenario.endAgeYears} onChange={(value) => patch('endAgeYears', value)} min={1} max={130} />
               <IntegerField label="Měsíce" value={scenario.endAgeMonths} onChange={(value) => patch('endAgeMonths', value)} min={0} max={11} />
@@ -593,7 +653,167 @@ function PanelHeader({ title, subtitle }: { title: string; subtitle: string }) {
 
 function MetricCard({ label, value, description, tone = 'default' }: { label: string; value: string; description?: string; tone?: Tone }) {
   const valueClass = tone === 'positive' ? 'positive' : tone === 'negative' ? 'negative' : ''
-  return <div className="kpi-card"><div className="kpi-label">{label}</div><div className={`kpi-value ${valueClass}`}>{value}</div>{description && <div className="kpi-description">{description}</div>}</div>
+  return (
+    <div className="kpi-card" style={{ minWidth: 0 }}>
+      <div className="kpi-label">{label}</div>
+      <div
+        className={`kpi-value ${valueClass}`}
+        style={{ overflowWrap: 'anywhere', wordBreak: 'normal', lineHeight: 1.15 }}
+      >
+        {value}
+      </div>
+      {description && <div className="kpi-description">{description}</div>}
+    </div>
+  )
+}
+
+function PlanningModeSelector({
+  value,
+  onChange,
+}: {
+  value: PlanningMode
+  onChange: (value: PlanningMode) => void
+}) {
+  return (
+    <section className="panel" style={{ marginBottom: '16px' }}>
+      <div className="panel-body">
+        <div className="fire-subheading" style={{ marginTop: 0 }}>Co chci zjistit</div>
+        <div className="fire-tabs" style={{ marginBottom: 0 }}>
+          <button
+            type="button"
+            className={value === 'EARLIEST_DATE' ? 'fire-tab fire-tab-active' : 'fire-tab'}
+            onClick={() => onChange('EARLIEST_DATE')}
+            style={{ whiteSpace: 'normal', lineHeight: 1.25 }}
+          >
+            Kdy mohu do renty?
+          </button>
+          <button
+            type="button"
+            className={value === 'FIXED_DATE' ? 'fire-tab fire-tab-active' : 'fire-tab'}
+            onClick={() => onChange('FIXED_DATE')}
+            style={{ whiteSpace: 'normal', lineHeight: 1.25 }}
+          >
+            Kolik mohu čerpat ve zvoleném věku?
+          </button>
+        </div>
+        <p className="panel-subtitle" style={{ marginTop: '10px' }}>
+          {value === 'EARLIEST_DATE'
+            ? 'Požadovaná renta je vstup. Začátek renty a potřebný kapitál vypočítá model.'
+            : 'Věk začátku je vstup. Model vypočítá udržitelnou rentu a případný deficit.'}
+        </p>
+      </div>
+    </section>
+  )
+}
+
+function FireDecisionSummary({
+  mode,
+  result,
+  desiredIncomeCzk,
+  inflationRate,
+}: {
+  mode: PlanningMode
+  result: CoupledFirePlanResult
+  desiredIncomeCzk: number
+  inflationRate: number
+}) {
+  const monthsToStart = mode === 'EARLIEST_DATE'
+    ? Math.max(result.earliestFeasibleMonth ?? 0, 0)
+    : Math.max(result.plannedMonths, 0)
+  const inflationFactor = Math.pow(1 + inflationRate, monthsToStart / 12)
+
+  if (mode === 'EARLIEST_DATE') {
+    const projectedReal = result.projectedCapitalAtEarliestDateCzk ?? 0
+    const requiredReal = result.requiredCapitalAtEarliestDateCzk ?? 0
+    const requiredNominal = requiredReal * inflationFactor
+    const incomeNominal = desiredIncomeCzk * inflationFactor
+    const reserveReal = Math.max(0, projectedReal - requiredReal)
+
+    return (
+      <section className="kpi-grid" style={{ marginBottom: '18px' }}>
+        <MetricCard
+          label="Nejdřívější proveditelný přechod"
+          value={result.earliestFeasibleDate ? formatDate(result.earliestFeasibleDate) : 'Nedosaženo'}
+          description={
+            result.earliestFeasibleAgeYears === null
+              ? 'V modelovaném horizontu není plán financovaný'
+              : ageLabel(result.earliestFeasibleAgeYears, result.earliestFeasibleAgeMonths ?? 0)
+          }
+          tone={result.earliestFeasibleDate ? 'positive' : 'negative'}
+        />
+        <MetricCard
+          label="Potřebný kapitál v dnešních cenách"
+          value={formatCompactMoney(requiredReal)}
+          description="Autoritativní reálný cíl pro výpočet dosažení"
+        />
+        <MetricCard
+          label="Potřebný kapitál nominálně"
+          value={formatCompactMoney(requiredNominal)}
+          description={`Stejná kupní síla v okamžiku přechodu · faktor ${inflationFactor.toLocaleString('cs-CZ', { maximumFractionDigits: 3 })}`}
+        />
+        <MetricCard
+          label="Renta v dnešních cenách"
+          value={`${formatMoney(desiredIncomeCzk)} / měs.`}
+          description="Požadovaná měsíční kupní síla"
+        />
+        <MetricCard
+          label="Renta nominálně při zahájení"
+          value={`${formatMoney(incomeNominal)} / měs.`}
+          description="Očekávaná částka prvního měsíčního čerpání"
+        />
+        <MetricCard
+          label="Modelová rezerva v dnešních cenách"
+          value={formatCompactMoney(reserveReal)}
+          description={`Projektovaný kapitál ${formatCompactMoney(projectedReal)}`}
+        />
+      </section>
+    )
+  }
+
+  const projectedReal = result.projectedCapitalAtPlannedDateCzk
+  const requiredReal = result.requiredCapitalAtPlannedDateCzk
+  const requiredNominal = requiredReal * inflationFactor
+  const sustainableIncomeReal = result.sustainableMonthlyIncomeAtPlannedDateCzk
+  const sustainableIncomeNominal = sustainableIncomeReal * inflationFactor
+  const deficit = Math.max(0, -result.plannedReserveCzk)
+
+  return (
+    <section className="kpi-grid" style={{ marginBottom: '18px' }}>
+      <MetricCard
+        label="Zvolený začátek renty"
+        value={formatDate(result.plannedDate)}
+        description={`Za ${monthsToStart} měsíců · inflace ${(inflationRate * 100).toLocaleString('cs-CZ', { maximumFractionDigits: 2 })} % p.a.`}
+      />
+      <MetricCard
+        label="Potřebný kapitál v dnešních cenách"
+        value={formatCompactMoney(requiredReal)}
+        description={`Projektováno ${formatCompactMoney(projectedReal)} v dnešních cenách`}
+        tone={projectedReal >= requiredReal ? 'positive' : 'negative'}
+      />
+      <MetricCard
+        label="Potřebný kapitál nominálně"
+        value={formatCompactMoney(requiredNominal)}
+        description="Stejná kupní síla vyjádřená korunami v okamžiku přechodu"
+      />
+      <MetricCard
+        label="Udržitelná renta v dnešních cenách"
+        value={`${formatMoney(sustainableIncomeReal)} / měs.`}
+        description={`Požadavek ${formatMoney(desiredIncomeCzk)} / měs.`}
+        tone={sustainableIncomeReal >= desiredIncomeCzk ? 'positive' : 'negative'}
+      />
+      <MetricCard
+        label="Udržitelná renta nominálně"
+        value={`${formatMoney(sustainableIncomeNominal)} / měs.`}
+        description="Očekávaná částka prvního měsíčního čerpání"
+      />
+      <MetricCard
+        label={deficit > 0 ? 'Deficit v dnešních cenách' : 'Modelová rezerva v dnešních cenách'}
+        value={formatCompactMoney(deficit > 0 ? deficit : result.plannedReserveCzk)}
+        description={`Potřebná investice ${formatMoney(result.requiredMonthlyContributionCzk)} / měs.`}
+        tone={deficit > 0 ? 'negative' : 'positive'}
+      />
+    </section>
+  )
 }
 
 function TabSelector({ value, onChange }: { value: FireTab; onChange: (value: FireTab) => void }) {
